@@ -64,21 +64,22 @@ export function CreateBoardModal({ open, onClose }: CreateBoardModalProps) {
           }))}
         />
 
-        <div className="rounded-lg border border-subtle bg-surface px-4 py-3">
+        <div className="rounded-xl border border-subtle bg-surface px-4 py-3">
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Room URL</p>
           <p className="mt-1 truncate font-mono text-xs text-accent">
             /board/{previewSlug}
           </p>
         </div>
 
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="ghost" onClick={onClose} type="button">
+        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end sm:gap-3">
+          <Button variant="ghost" onClick={onClose} type="button" className="w-full sm:w-auto">
             Cancel
           </Button>
           <Button
             onClick={handleCreate}
             disabled={!name.trim() || loading}
             type="button"
+            className="w-full sm:w-auto"
           >
             {loading ? "Creating..." : "Create board"}
           </Button>

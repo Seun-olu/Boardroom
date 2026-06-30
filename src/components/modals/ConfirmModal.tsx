@@ -24,8 +24,8 @@ export function ConfirmModal({
 }: ConfirmModalProps) {
   return (
     <Modal open={open} onClose={onClose} title={title} description={description} size="sm">
-      <div className="flex justify-end gap-3 pt-2">
-        <Button variant="ghost" onClick={onClose} type="button">
+      <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end sm:gap-3">
+        <Button variant="ghost" onClick={onClose} type="button" className="w-full sm:w-auto">
           Cancel
         </Button>
         <Button
@@ -35,6 +35,7 @@ export function ConfirmModal({
             onClose();
           }}
           type="button"
+          className="w-full sm:w-auto"
         >
           {confirmLabel}
         </Button>

@@ -191,7 +191,7 @@ export function Board({
           <button
             type="button"
             onClick={() => setLaneModalOpen(true)}
-            className="mt-6 flex h-9 w-[min(72vw,12rem)] shrink-0 snap-center items-center justify-center gap-1.5 rounded-lg border border-dashed border-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:border-accent/50 hover:text-accent sm:mt-8 sm:w-auto"
+            className="mt-6 flex h-9 w-[min(72vw,12rem)] shrink-0 snap-center items-center justify-center gap-1.5 rounded-xl border border-dashed border-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:border-accent/50 hover:text-accent sm:mt-8 sm:w-auto"
             title={LANE.add}
           >
             <span className="text-sm leading-none">+</span>

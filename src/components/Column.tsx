@@ -96,7 +96,7 @@ export function Column({
         <div className="mb-3 flex items-center gap-1.5">
           <button
             type="button"
-            className="flex h-7 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted/60 transition-colors hover:text-muted active:cursor-grabbing"
+            className="flex h-7 w-5 shrink-0 cursor-grab items-center justify-center rounded-lg text-muted/60 transition-colors hover:bg-white/5 hover:text-muted active:cursor-grabbing"
             aria-label={LANE.dragHint}
             {...attributes}
             {...listeners}
@@ -122,7 +122,7 @@ export function Column({
                   setIsRenaming(false);
                 }
               }}
-              className="min-w-0 flex-1 rounded-md border border-accent/40 bg-surface px-2 py-1 font-mono text-xs font-bold uppercase tracking-[0.12em] text-white outline-none"
+              className="min-w-0 flex-1 rounded-xl border border-accent/40 bg-surface px-2 py-1 font-mono text-xs font-bold uppercase tracking-[0.12em] text-white outline-none"
             />
           ) : (
             <h2 className="min-w-0 flex-1 truncate font-mono text-xs font-bold uppercase tracking-[0.15em] text-white/80">
@@ -186,7 +186,7 @@ export function Column({
           <button
             type="button"
             onClick={() => setModalOpen(true)}
-            className="mt-1 w-full rounded-lg border border-dashed border-subtle py-2 font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:border-accent/40 hover:text-accent"
+            className="mt-1 min-h-[44px] w-full touch-manipulation rounded-xl border border-dashed border-subtle py-2.5 font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:border-accent/40 hover:text-accent"
           >
             + Add card
           </button>

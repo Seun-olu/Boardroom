@@ -40,7 +40,7 @@ export function KanbanCard({ card, accentColor = "#6366F1", isDragging, onClick 
         }
       }}
       className={clsx(
-        "group cursor-grab rounded-lg border border-subtle border-l-[3px] bg-elevated p-3.5 transition-all active:cursor-grabbing",
+        "group touch-manipulation select-none rounded-xl border border-subtle border-l-[3px] bg-elevated p-3 transition-all active:cursor-grabbing sm:p-3.5",
         "hover:border-accent/30 hover:bg-[#222226]",
         (isDragging || isSortDragging) && "z-50 shadow-glow opacity-90"
       )}
@@ -86,7 +86,7 @@ export function KanbanCardOverlay({
 }) {
   return (
     <div
-      className="rounded-lg border border-accent/40 border-l-[3px] bg-elevated p-3.5 shadow-glow"
+      className="rounded-xl border border-accent/40 border-l-[3px] bg-elevated p-3.5 shadow-glow"
       style={{ borderLeftColor: color }}
     >
       <p className="text-sm font-medium text-white">{card.title}</p>

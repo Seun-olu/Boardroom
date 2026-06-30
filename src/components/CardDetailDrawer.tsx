@@ -178,7 +178,7 @@ export function CardDetailDrawer({
                 {subtasks.map((sub) => (
                   <li
                     key={sub.id}
-                    className="flex items-center gap-2 rounded-lg border border-subtle bg-surface px-3 py-2"
+                    className="flex items-center gap-2 rounded-xl border border-subtle bg-surface px-3 py-2"
                   >
                     <button
                       type="button"
@@ -224,7 +224,7 @@ export function CardDetailDrawer({
               </ul>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 id="new-subtask"
                 placeholder="Add a subtask..."
@@ -239,14 +239,14 @@ export function CardDetailDrawer({
                 size="sm"
                 onClick={addSubtask}
                 disabled={!newSubtask.trim()}
-                className="shrink-0 self-end"
+                className="w-full shrink-0 sm:w-auto sm:self-end"
               >
                 Add
               </Button>
             </div>
           </div>
 
-          <div className="rounded-lg border border-subtle bg-surface px-4 py-3">
+          <div className="rounded-xl border border-subtle bg-surface px-4 py-3">
             <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
               Last updated
             </p>
@@ -255,19 +255,19 @@ export function CardDetailDrawer({
             </p>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:gap-3">
             <Button
               variant="danger"
               onClick={() => setDeleteOpen(true)}
               type="button"
-              className="shrink-0"
+              className="w-full sm:shrink-0 sm:w-auto"
             >
               Delete
             </Button>
-            <Button variant="secondary" onClick={onClose} type="button" className="flex-1">
+            <Button variant="secondary" onClick={onClose} type="button" className="w-full sm:flex-1">
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!title.trim()} type="button" className="flex-1">
+            <Button onClick={handleSave} disabled={!title.trim()} type="button" className="w-full sm:flex-1">
               Save
             </Button>
           </div>

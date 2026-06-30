@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import clsx from "clsx";
 
 interface ModalProps {
@@ -22,8 +22,6 @@ export function Modal({
   size = "md",
   dismissible = true,
 }: ModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -39,35 +37,48 @@ export function Modal({
 
   if (!open) return null;
 
-  const widths = { sm: "max-w-sm", md: "max-w-md", lg: "max-w-lg" };
+  const widths = { sm: "sm:max-w-sm", md: "sm:max-w-md", lg: "sm:max-w-lg" };
 
   return (
     <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
-      onClick={(e) => {
-        if (dismissible && e.target === overlayRef.current) onClose();
-      }}
     >
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="Close dialog"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={() => {
+          if (dismissible) onClose();
+        }}
+      />
       <div
         className={clsx(
-          "relative w-full animate-in fade-in zoom-in-95 rounded-xl border border-subtle bg-elevated shadow-glow",
+          "relative z-10 flex max-h-[min(92dvh,100%)] w-full flex-col",
+          "rounded-t-2xl border border-subtle bg-elevated shadow-glow",
+          "pb-[max(0px,env(safe-area-inset-bottom))]",
+          "sm:max-h-[90vh] sm:rounded-2xl",
           widths[size]
         )}
       >
-        <div className="border-b border-subtle px-6 py-5">
-          <h2 id="modal-title" className="font-display text-lg uppercase tracking-tight text-white">
+        <div className="shrink-0 border-b border-subtle px-4 py-4 sm:px-6 sm:py-5">
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-subtle sm:hidden" aria-hidden />
+          <h2
+            id="modal-title"
+            className="font-display text-base uppercase tracking-tight text-white sm:text-lg"
+          >
             {title}
           </h2>
           {description && (
-            <p className="mt-1 text-sm text-muted">{description}</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">{description}</p>
           )}
         </div>
-        <div className="px-6 py-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
+          {children}
+        </div>
       </div>
     </div>
   );

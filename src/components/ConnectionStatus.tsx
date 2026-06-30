@@ -33,7 +33,7 @@ export function ConnectionStatus({ state, pendingCount = 0 }: ConnectionStatusPr
   const config = STATE_CONFIG[state];
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-subtle bg-surface px-3 py-1.5">
+    <div className="flex items-center gap-3 rounded-xl border border-subtle bg-surface px-3 py-1.5">
       {pendingCount > 0 && (
         <span className="font-mono text-[9px] uppercase tracking-widest text-muted">
           {pendingCount} queued

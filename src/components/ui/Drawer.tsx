@@ -28,7 +28,7 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
     <>
       <div
         className={clsx(
-          "fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity",
+          "fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm transition-opacity",
           open ? "opacity-100" : "pointer-events-none opacity-0"
         )}
         onClick={onClose}
@@ -36,24 +36,36 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
       />
       <aside
         className={clsx(
-          "fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-subtle bg-elevated shadow-2xl transition-transform duration-300 ease-out",
-          open ? "translate-x-0" : "translate-x-full"
+          "fixed z-[56] flex flex-col border-subtle bg-elevated shadow-2xl transition-transform duration-300 ease-out",
+          "inset-x-0 bottom-0 h-[min(92dvh,820px)] w-full rounded-t-2xl border-t",
+          "pb-[max(0px,env(safe-area-inset-bottom))]",
+          "sm:inset-y-0 sm:right-0 sm:left-auto sm:top-0 sm:h-full sm:max-w-md sm:rounded-l-2xl sm:border-l sm:border-t-0",
+          open
+            ? "translate-y-0 sm:translate-x-0"
+            : "translate-y-full sm:translate-y-0 sm:translate-x-full"
         )}
         role="dialog"
         aria-modal="true"
       >
-        <div className="flex items-center justify-between border-b border-subtle px-6 py-4">
-          <h2 className="font-display text-sm uppercase tracking-tight text-white">{title}</h2>
+        <div className="flex shrink-0 items-center justify-between border-b border-subtle px-4 py-3 sm:px-6 sm:py-4">
+          <div className="min-w-0 flex-1">
+            <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-subtle sm:hidden" aria-hidden />
+            <h2 className="truncate font-display text-sm uppercase tracking-tight text-white">
+              {title}
+            </h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-white"
+            className="ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-white touch-manipulation"
             aria-label="Close"
           >
             ✕
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
+          {children}
+        </div>
       </aside>
     </>
   );

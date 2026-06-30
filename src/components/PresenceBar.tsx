@@ -35,7 +35,7 @@ export function PresenceBar({ users, currentUserName }: PresenceBarProps) {
               </div>
               <div
                 role="tooltip"
-                className="pointer-events-none absolute left-1/2 top-[calc(100%+8px)] z-50 -translate-x-1/2 whitespace-nowrap rounded-md border border-subtle bg-elevated px-2.5 py-1.5 font-mono text-[10px] text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/avatar:opacity-100"
+                className="pointer-events-none absolute left-1/2 top-[calc(100%+8px)] z-50 -translate-x-1/2 whitespace-nowrap rounded-lg border border-subtle bg-elevated px-2.5 py-1.5 font-mono text-[10px] text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/avatar:opacity-100"
               >
                 {label}
               </div>

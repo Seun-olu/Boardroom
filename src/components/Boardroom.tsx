@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useBoard } from "@/hooks/useBoard";
 import { getStoredIdentity, saveIdentity, type UserIdentity } from "@/lib/username";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Board } from "@/components/Board";
 import { BoardSkeleton } from "@/components/BoardSkeleton";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
@@ -92,15 +92,10 @@ function BoardroomView({
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-base text-white">
-      <header className="relative z-20 shrink-0 overflow-visible border-b border-subtle px-4 py-3 sm:px-6 sm:py-4 md:px-10">
+      <header className="relative z-20 shrink-0 overflow-visible border-b border-subtle/80 bg-base/60 px-4 py-3 backdrop-blur-md sm:px-6 sm:py-4 md:px-10">
         <div className="mx-auto flex max-w-[1600px] flex-col gap-3 overflow-visible sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
-            <Link
-              href="/"
-              className="shrink-0 font-display text-base uppercase tracking-tight text-white sm:text-lg"
-            >
-              Boardroom
-            </Link>
+            <BrandLogo href="/" size="sm" />
             <div className="hidden h-4 w-px bg-subtle sm:block" />
             <div className="min-w-0 flex-1">
               {isRenamingBoard ? (
@@ -113,7 +108,7 @@ function BoardroomView({
                     if (e.key === "Enter") commitBoardRename();
                     if (e.key === "Escape") setIsRenamingBoard(false);
                   }}
-                  className="w-full max-w-[240px] rounded-md border border-accent/40 bg-surface px-2 py-1 text-sm font-semibold text-white outline-none"
+                  className="w-full max-w-[240px] rounded-xl border border-accent/40 bg-surface px-2 py-1 text-sm font-semibold text-white outline-none"
                 />
               ) : (
                 <button
@@ -253,9 +248,9 @@ export function Boardroom({ roomId }: BoardroomProps) {
 
   if (!identityReady) {
     return (
-      <div className="flex min-h-screen flex-col bg-base text-white">
-        <header className="border-b border-subtle px-6 py-4">
-          <span className="font-display text-lg uppercase tracking-tight">Boardroom</span>
+      <div className="flex min-h-[100dvh] flex-col bg-base text-white">
+        <header className="border-b border-subtle/80 bg-base/60 px-4 py-4 backdrop-blur-md sm:px-6">
+          <BrandLogo href="/" size="sm" />
         </header>
         <main className="flex flex-1 items-center justify-center">
           <BoardSkeleton />
@@ -266,9 +261,9 @@ export function Boardroom({ roomId }: BoardroomProps) {
 
   if (!identity || namePromptOpen) {
     return (
-      <div className="flex min-h-screen flex-col bg-base text-white">
-        <header className="border-b border-subtle px-6 py-4">
-          <span className="font-display text-lg uppercase tracking-tight">Boardroom</span>
+      <div className="flex min-h-[100dvh] flex-col bg-base text-white">
+        <header className="border-b border-subtle/80 bg-base/60 px-4 py-4 backdrop-blur-md sm:px-6">
+          <BrandLogo href="/" size="sm" />
         </header>
         <main className="flex flex-1 items-center justify-center">
           <BoardSkeleton />

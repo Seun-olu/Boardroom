@@ -66,11 +66,11 @@ export function CreateColumnModal({ open, onClose, onSubmit }: CreateColumnModal
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="ghost" onClick={onClose} type="button">
+        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end sm:gap-3">
+          <Button variant="ghost" onClick={onClose} type="button" className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!title.trim()} type="button">
+          <Button onClick={handleSubmit} disabled={!title.trim()} type="button" className="w-full sm:w-auto">
             {LANE.add}
           </Button>
         </div>
