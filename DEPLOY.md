@@ -44,41 +44,56 @@ Do this **first** — you need the host URL for Netlify.
 
 ### If dashboard.partykit.io shows a 500 error
 
-That's a **PartyKit platform bug** — not your project. Skip the website dashboard and use the **terminal** instead:
+That's a **PartyKit platform bug** on their website — not your project. The Cloudflare token **does not replace** PartyKit login. You need **both**:
+
+1. **PartyKit auth** (pick one):
+   - GitHub token (no browser — recommended when dashboard is broken)
+   - `PARTYKIT_LOGIN` + `PARTYKIT_TOKEN`
+   - Browser login via CLI
+
+2. **Cloudflare credentials** — only if using cloud-prem with a custom domain
+
+#### Option A — GitHub token (bypasses broken dashboard)
+
+1. Go to [github.com/settings/tokens](https://github.com/settings/tokens) → **Generate new token (classic)**
+2. No special scopes needed for basic deploy (public repo access is enough)
+3. Run:
 
 ```bash
-# Option A — CLI deploy (opens a device-login page, different URL than dashboard)
-npm run party:deploy
-```
-
-If the browser page also fails, use **Option B — deploy to your own Cloudflare account** (bypasses PartyKit dashboard entirely):
-
-1. Create a free [Cloudflare](https://dash.cloudflare.com) account
-2. Go to **My Profile → API Tokens → Create Token**
-3. Use the **Edit Cloudflare Workers** template
-4. Copy your **Account ID** from the Workers dashboard overview
-5. Run:
-
-```bash
-CLOUDFLARE_ACCOUNT_ID=your_account_id \
-CLOUDFLARE_API_TOKEN=your_token \
-npx partykit deploy --domain boardroom.YOURDOMAIN.com
-```
-
-Or without a custom domain (Workers subdomain):
-
-```bash
-CLOUDFLARE_ACCOUNT_ID=your_account_id \
-CLOUDFLARE_API_TOKEN=your_token \
+GITHUB_LOGIN=your_github_username \
+GITHUB_TOKEN=ghp_your_token_here \
 npx partykit deploy
 ```
 
-### Normal flow (when dashboard works)
+Deploys to: `boardroom.yourusername.partykit.dev` — use that as `NEXT_PUBLIC_PARTYKIT_HOST` on Netlify.
+
+#### Option B — Cloud-prem (your Cloudflare account)
+
+Requires a **domain on Cloudflare** (e.g. `boardroom.yourdomain.com`).
+
+1. Add to `partykit.json`:
+   ```json
+   "domain": "boardroom.yourdomain.com"
+   ```
+2. Run **all four** env vars:
 
 ```bash
-npx partykit login
+GITHUB_LOGIN=your_github_username \
+GITHUB_TOKEN=ghp_your_token_here \
+CLOUDFLARE_ACCOUNT_ID=your_account_id \
+CLOUDFLARE_API_TOKEN=your_cloudflare_token \
+npx partykit deploy
+```
+
+Without `domain` in `partykit.json`, Cloudflare vars are ignored and it still tries PartyKit managed hosting + browser login.
+
+#### Option C — CLI device login
+
+```bash
 npm run party:deploy
 ```
+
+Opens `dashboard.partykit.io/login/device` — may work even when the main dashboard 500s.
 
 You'll get a host like:
 
