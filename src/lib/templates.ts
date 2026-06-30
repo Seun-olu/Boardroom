@@ -32,7 +32,7 @@ const SEED_CARDS: Card[] = [
   {
     id: "seed-3",
     title: "Wire up realtime sync",
-    description: "PartyKit room with presence and conflict handling.",
+    description: "Supabase Realtime with presence and conflict handling.",
     column: "doing",
     order: 0,
     priority: "urgent",
@@ -43,7 +43,7 @@ const SEED_CARDS: Card[] = [
   {
     id: "seed-4",
     title: "Ship the demo",
-    description: "Deploy frontend + PartyKit, write case study.",
+    description: "Deploy to Netlify + Supabase, write case study.",
     column: "done",
     order: 0,
     priority: "low",

@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import usePartySocket from "partysocket/react";
 import { toast } from "sonner";
 import { nanoid } from "nanoid";
-import { PARTYKIT_HOST, QUEUE_STORAGE_KEY } from "@/lib/constants";
+import { QUEUE_STORAGE_KEY } from "@/lib/constants";
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type {
   BoardColumn,
   BoardMeta,
@@ -19,6 +19,7 @@ import type {
 } from "@/lib/types";
 import type { UserIdentity } from "@/lib/username";
 import { pickColumnColor } from "@/lib/board-utils";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface UseBoardOptions {
   roomId: string;
@@ -71,6 +72,33 @@ function saveQueue(roomId: string, queue: QueuedAction[]) {
   }
 }
 
+function presenceFromState(
+  state: Record<string, { id: string; name: string; color: string }[]>
+): PresenceUser[] {
+  const users: PresenceUser[] = [];
+  for (const entries of Object.values(state)) {
+    for (const entry of entries) {
+      users.push(entry);
+    }
+  }
+  return users;
+}
+
+async function postAction(roomId: string, msg: ClientMessage): Promise<ServerMessage[]> {
+  const res = await fetch(`/api/board/${roomId}/action`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(msg),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Action failed (${res.status})`);
+  }
+
+  const data = (await res.json()) as { messages: ServerMessage[] };
+  return data.messages ?? [];
+}
+
 export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): UseBoardReturn {
   const [columns, setColumns] = useState<BoardColumn[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
@@ -89,7 +117,11 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
   const pendingActionsRef = useRef<Map<string, QueuedAction>>(new Map());
   const hasSyncedRef = useRef(false);
   const initSentRef = useRef(false);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const onlineRef = useRef(true);
+
+  const initConfigRef = useRef(initConfig);
+  initConfigRef.current = initConfig;
 
   const updatePendingCount = useCallback(() => {
     setPendingCount(queueRef.current.length + pendingActionsRef.current.size);
@@ -116,86 +148,17 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
     [applyCardUpdate]
   );
 
-  const sendMessage = useCallback(
-    (socket: { readyState: number; send: (data: string) => void } | null, msg: ClientMessage) => {
-      if (socket?.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(msg));
-        return true;
-      }
-      return false;
-    },
-    []
-  );
-
-  const flushQueue = useCallback(
-    (socket: { send: (data: string) => void }) => {
-      if (queueRef.current.length === 0) return;
-      const actions = queueRef.current.map((q) => q.message);
-      socket.send(JSON.stringify({ type: "flush_queue", actions }));
-      queueRef.current = [];
-      saveQueue(roomId, []);
-      updatePendingCount();
-    },
-    [roomId, updatePendingCount]
-  );
-
-  const initConfigRef = useRef(initConfig);
-  initConfigRef.current = initConfig;
-  const socketRef = useRef<{ send: (data: string) => void } | null>(null);
-
-  useEffect(() => {
-    if (!isLoading) return;
-    const timeout = setTimeout(() => {
-      if (!hasSyncedRef.current) {
-        setIsLoading(false);
-        toast.error("Cannot reach realtime server", {
-          description: "Run npm run dev (needs both Next.js and PartyKit on port 1999).",
-          duration: 8000,
-        });
-      }
-    }, 6000);
-    return () => clearTimeout(timeout);
-  }, [isLoading, roomId]);
-
-  const socket = usePartySocket({
-    host: PARTYKIT_HOST,
-    room: roomId,
-    query: { name: identity.name, color: identity.color },
-    onOpen() {
-      clearTimeout(reconnectTimerRef.current);
-      setConnectionState("live");
-    },
-    onClose() {
-      reconnectTimerRef.current = setTimeout(() => {
-        setConnectionState((prev) => (prev === "live" ? "reconnecting" : prev));
-      }, 300);
-    },
-    onError() {
-      setConnectionState("offline");
-    },
-    onMessage(event) {
-      const msg = JSON.parse(event.data as string) as ServerMessage;
-
+  const handleServerMessage = useCallback(
+    (msg: ServerMessage) => {
       switch (msg.type) {
         case "sync":
           setColumns(msg.columns);
           setCards(msg.cards);
           setBoard(msg.board);
-          setUsers(msg.users);
+          if (msg.users.length > 0) setUsers(msg.users);
           if (!hasSyncedRef.current) {
             setIsLoading(false);
             hasSyncedRef.current = true;
-            const cfg = initConfigRef.current;
-            if (cfg && !msg.board.initialized && !initSentRef.current && socketRef.current) {
-              initSentRef.current = true;
-              socketRef.current.send(
-                JSON.stringify({
-                  type: "init_board",
-                  name: cfg.name,
-                  template: cfg.template,
-                })
-              );
-            }
           }
           break;
 
@@ -260,39 +223,147 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
           break;
       }
     },
-  });
+    [applyCardUpdate, rollbackAction, updatePendingCount]
+  );
 
-  socketRef.current = socket;
+  const maybeInitBoard = useCallback(async () => {
+    const cfg = initConfigRef.current;
+    if (!cfg || initSentRef.current) return;
 
-  useEffect(() => {
-    if (socket?.readyState === WebSocket.OPEN) {
-      flushQueue(socket);
+    initSentRef.current = true;
+    const messages = await postAction(roomId, {
+      type: "init_board",
+      name: cfg.name,
+      template: cfg.template,
+    });
+    for (const msg of messages) handleServerMessage(msg);
+  }, [roomId, handleServerMessage]);
+
+  const flushQueue = useCallback(async () => {
+    if (queueRef.current.length === 0 || !onlineRef.current) return;
+
+    const actions = queueRef.current.map((q) => q.message);
+    queueRef.current = [];
+    saveQueue(roomId, []);
+    updatePendingCount();
+
+    try {
+      const messages = await postAction(roomId, { type: "flush_queue", actions });
+      for (const msg of messages) handleServerMessage(msg);
+    } catch {
+      queueRef.current = actions.map((message, i) => ({
+        id: `recovered-${i}`,
+        message: message as QueuedAction["message"],
+        createdAt: Date.now(),
+      }));
+      saveQueue(roomId, queueRef.current);
+      updatePendingCount();
+      toast.error("Sync failed", { description: "Some offline changes could not be sent." });
     }
-  }, [socket, connectionState, flushQueue]);
+  }, [roomId, handleServerMessage, updatePendingCount]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!socket) return;
-      switch (socket.readyState) {
-        case WebSocket.CONNECTING:
-          setConnectionState("reconnecting");
-          break;
-        case WebSocket.OPEN:
-          setConnectionState("live");
-          break;
-        case WebSocket.CLOSING:
-        case WebSocket.CLOSED:
-          setConnectionState((prev) => (prev === "offline" ? "offline" : "reconnecting"));
-          break;
+    if (!isSupabaseConfigured()) {
+      setIsLoading(false);
+      setConnectionState("offline");
+      toast.error("Supabase not configured", {
+        description: "Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to .env.local",
+        duration: 10000,
+      });
+      return;
+    }
+
+    let cancelled = false;
+    const supabase = getSupabaseBrowserClient();
+    const presenceKey = identity.id;
+
+    const channel = supabase.channel(`board:${roomId}`, {
+      config: { presence: { key: presenceKey } },
+    });
+
+    channel
+      .on("broadcast", { event: "server_message" }, ({ payload }) => {
+        handleServerMessage(payload as ServerMessage);
+      })
+      .on("presence", { event: "sync" }, () => {
+        setUsers(presenceFromState(channel.presenceState()));
+      })
+      .on("presence", { event: "join" }, () => {
+        setUsers(presenceFromState(channel.presenceState()));
+      })
+      .on("presence", { event: "leave" }, () => {
+        setUsers(presenceFromState(channel.presenceState()));
+      });
+
+    channel.subscribe(async (status) => {
+      if (cancelled) return;
+
+      if (status === "SUBSCRIBED") {
+        setConnectionState("live");
+        await channel.track({
+          id: identity.id,
+          name: identity.name,
+          color: identity.color,
+        });
+
+        try {
+          const res = await fetch(`/api/board/${roomId}`);
+          if (!res.ok) throw new Error("sync failed");
+          const sync = (await res.json()) as ServerMessage;
+          if (sync.type === "sync") {
+            handleServerMessage(sync);
+            if (!sync.board.initialized) {
+              await maybeInitBoard();
+            }
+          }
+          await flushQueue();
+        } catch (err) {
+          setConnectionState("offline");
+          const isRls =
+            err instanceof Error && err.message.includes("42501");
+          toast.error("Cannot reach board API", {
+            description: isRls
+              ? "Run supabase/fix-rls.sql in Supabase SQL Editor."
+              : "Check Supabase keys in .env.local and restart npm run dev.",
+            duration: 10000,
+          });
+        }
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        setConnectionState("offline");
+      } else if (status === "CLOSED") {
+        setConnectionState("reconnecting");
       }
-    }, 500);
-    return () => clearInterval(interval);
-  }, [socket]);
+    });
+
+    channelRef.current = channel;
+
+    const loadTimeout = setTimeout(() => {
+      if (!hasSyncedRef.current && !cancelled) {
+        setIsLoading(false);
+        toast.error("Board load timed out", {
+          description: "Check your Supabase setup and network connection.",
+          duration: 8000,
+        });
+      }
+    }, 8000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(loadTimeout);
+      void supabase.removeChannel(channel);
+      channelRef.current = null;
+    };
+  }, [roomId, identity, handleServerMessage, maybeInitBoard, flushQueue]);
 
   useEffect(() => {
-    const goOffline = () => setConnectionState("offline");
+    const goOffline = () => {
+      onlineRef.current = false;
+      setConnectionState("offline");
+    };
     const goOnline = () => {
-      if (socket?.readyState !== WebSocket.OPEN) setConnectionState("reconnecting");
+      onlineRef.current = true;
+      setConnectionState("reconnecting");
+      void flushQueue();
     };
     window.addEventListener("offline", goOffline);
     window.addEventListener("online", goOnline);
@@ -300,26 +371,43 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
       window.removeEventListener("offline", goOffline);
       window.removeEventListener("online", goOnline);
     };
-  }, [socket]);
+  }, [flushQueue]);
 
-  const enqueue = useCallback(
-    (
-      message: QueuedAction["message"],
-      action: Omit<QueuedAction, "message">,
-      activeSocket: { readyState: number; send: (data: string) => void } | null
-    ) => {
+  const sendAction = useCallback(
+    async (message: QueuedAction["message"], action: Omit<QueuedAction, "message">) => {
       const full: QueuedAction = { ...action, message };
-      const sent = sendMessage(activeSocket, message);
-      if (sent) {
-        pendingActionsRef.current.set(action.id, full);
-      } else {
+
+      if (!onlineRef.current || connectionState === "offline") {
         queueRef.current.push(full);
         saveQueue(roomId, queueRef.current);
+        updatePendingCount();
         toast.info("Saved offline", { description: "Will sync when you reconnect." });
+        return;
       }
+
+      pendingActionsRef.current.set(action.id, full);
       updatePendingCount();
+
+      try {
+        const messages = await postAction(roomId, message);
+        for (const msg of messages) handleServerMessage(msg);
+      } catch {
+        pendingActionsRef.current.delete(action.id);
+        rollbackAction(full);
+        updatePendingCount();
+        queueRef.current.push(full);
+        saveQueue(roomId, queueRef.current);
+        updatePendingCount();
+        toast.error("Action failed", { description: "Saved to offline queue." });
+      }
     },
-    [roomId, sendMessage, updatePendingCount]
+    [
+      roomId,
+      connectionState,
+      handleServerMessage,
+      rollbackAction,
+      updatePendingCount,
+    ]
   );
 
   const moveCard = useCallback(
@@ -346,7 +434,7 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
         return [...other, ...reindexed];
       });
 
-      enqueue(
+      void sendAction(
         {
           type: "move_card",
           cardId,
@@ -357,11 +445,10 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
           userName: identity.name,
           clientActionId,
         },
-        { id: clientActionId, previousCard, createdAt: Date.now() },
-        socket
+        { id: clientActionId, previousCard, createdAt: Date.now() }
       );
     },
-    [identity.name, enqueue, socket]
+    [identity.name, sendAction]
   );
 
   const addCard = useCallback(
@@ -381,7 +468,7 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
 
       setCards((prev) => [...prev, optimistic]);
 
-      enqueue(
+      void sendAction(
         {
           type: "add_card",
           title: data.title,
@@ -391,11 +478,10 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
           clientActionId,
           userName: identity.name,
         },
-        { id: clientActionId, optimisticCard: optimistic, createdAt: Date.now() },
-        socket
+        { id: clientActionId, optimisticCard: optimistic, createdAt: Date.now() }
       );
     },
-    [identity.name, enqueue, socket]
+    [identity.name, sendAction]
   );
 
   const updateCard = useCallback(
@@ -422,7 +508,7 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
 
       applyCardUpdate(optimistic);
 
-      enqueue(
+      void sendAction(
         {
           type: "update_card",
           cardId: data.cardId,
@@ -433,11 +519,10 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
           userName: identity.name,
           clientActionId,
         },
-        { id: clientActionId, previousCard, createdAt: Date.now() },
-        socket
+        { id: clientActionId, previousCard, createdAt: Date.now() }
       );
     },
-    [identity.name, applyCardUpdate, enqueue, socket]
+    [identity.name, applyCardUpdate, sendAction]
   );
 
   const addColumn = useCallback(
@@ -454,7 +539,7 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
 
       setColumns((prev) => [...prev, optimistic]);
 
-      enqueue(
+      void sendAction(
         {
           type: "add_column",
           title,
@@ -462,11 +547,10 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
           clientActionId,
           userName: identity.name,
         },
-        { id: clientActionId, optimisticColumn: optimistic, createdAt: Date.now() },
-        socket
+        { id: clientActionId, optimisticColumn: optimistic, createdAt: Date.now() }
       );
     },
-    [identity.name, enqueue, socket]
+    [identity.name, sendAction]
   );
 
   return {

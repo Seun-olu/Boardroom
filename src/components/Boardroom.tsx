@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useBoard } from "@/hooks/useBoard";
-import { getOrCreateIdentity } from "@/lib/username";
+import { getOrCreateIdentity, type UserIdentity } from "@/lib/username";
 import { Board } from "@/components/Board";
 import { BoardSkeleton } from "@/components/BoardSkeleton";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
@@ -19,7 +19,7 @@ interface BoardroomProps {
 
 export function Boardroom({ roomId }: BoardroomProps) {
   const searchParams = useSearchParams();
-  const [identity, setIdentity] = useState<{ name: string; color: string } | null>(null);
+  const [identity, setIdentity] = useState<UserIdentity | null>(null);
 
   const initConfig = useMemo(() => {
     if (searchParams.get("fresh") !== "1") return null;
@@ -47,7 +47,7 @@ export function Boardroom({ roomId }: BoardroomProps) {
     pendingCount,
   } = useBoard({
     roomId,
-    identity: identity ?? { name: "Guest", color: "#6366F1" },
+    identity: identity ?? { id: "guest", name: "Guest", color: "#6366F1" },
     initConfig,
   });
 

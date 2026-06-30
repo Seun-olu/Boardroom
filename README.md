@@ -1,65 +1,66 @@
 # Boardroom
 
-A real-time shared kanban board (Todo / Doing / Done) built to demonstrate live collaboration UX — optimistic updates, connection states, presence, and conflict handling.
+A real-time shared kanban board built to demonstrate live collaboration UX — optimistic updates, connection states, presence, and conflict handling.
 
-**Stack:** Next.js 14 · PartyKit · @dnd-kit · TypeScript · Tailwind CSS
+**Stack:** Next.js 14 · Supabase Realtime · @dnd-kit · TypeScript · Tailwind CSS
 
 ## Quick start
+
+### 1. Create a free Supabase project
+
+1. Go to [supabase.com](https://supabase.com) → New project (free tier)
+2. Open **SQL Editor** → paste and run `supabase/schema.sql`
+3. Go to **Project Settings → API** and copy your URL + keys
+
+### 2. Configure env
 
 ```bash
 npm install
 cp .env.local.example .env.local
+```
+
+Fill in `.env.local`:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+```
+
+### 3. Run locally
+
+```bash
 npm run dev
 ```
 
-This runs **Next.js** (`localhost:3000`) and **PartyKit** (`localhost:1999`) concurrently.
+Open [http://localhost:3002](http://localhost:3002), create a board, and open the link in another tab to test sync.
 
-1. Open [http://localhost:3000](http://localhost:3000)
-2. Click **Open a board**
-3. Copy the room link and open it in another tab/browser to test multi-user sync
+## Deploy (Netlify)
 
-## Deploy
-
-### 1. PartyKit (realtime server)
-
-```bash
-npx partykit deploy
-```
-
-Note the host (e.g. `boardroom.yourname.partykit.dev`).
-
-### 2. Vercel (frontend)
-
-```bash
-npx vercel
-```
-
-Set environment variable:
-
-```
-NEXT_PUBLIC_PARTYKIT_HOST=boardroom.yourname.partykit.dev
-```
+1. Push to GitHub
+2. Import repo on [Netlify](https://netlify.com)
+3. Add the same three env vars in **Site settings → Environment variables**
+4. Deploy — no separate realtime server needed
 
 ## Features
 
 | Feature | Implementation |
 |---------|----------------|
-| Real-time sync | PartyKit WebSocket rooms |
-| Drag & drop | @dnd-kit with smooth overlay animations |
-| Optimistic UI | Local state updates immediately, rollback on conflict/failure |
-| Connection states | Live / Reconnecting / Offline indicators |
-| Offline queue | Actions persisted to localStorage, flushed on reconnect |
-| Conflicts | Last-write-wins with toast when your move is overwritten |
-| Presence | Colored avatars for everyone in the room |
-| No auth | Random username generated on join (sessionStorage) |
+| Real-time sync | Supabase Realtime broadcast + Next.js API |
+| Persistence | Supabase Postgres |
+| Drag & drop | @dnd-kit |
+| Optimistic UI | Local updates, rollback on conflict |
+| Connection states | Live / Reconnecting / Offline |
+| Offline queue | localStorage, flushed on reconnect |
+| Presence | Supabase Realtime presence |
 
 ## Project structure
 
 ```
-party/board.ts          ← PartyKit server (state, sync, conflicts)
-src/hooks/useBoard.ts   ← Client realtime hook (optimistic + queue)
-src/components/         ← Kanban UI
-CASE_STUDY.md           ← Architecture & tradeoffs
+src/lib/board-engine.ts     ← Board logic (moves, conflicts, templates)
+src/app/api/board/          ← REST API (load + mutate)
+src/hooks/useBoard.ts       ← Client hook (optimistic + realtime)
+supabase/schema.sql         ← One-time DB setup
 ```
 
 ## Author

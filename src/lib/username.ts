@@ -18,12 +18,14 @@ function pick<T>(arr: T[]): T {
 }
 
 export interface UserIdentity {
+  id: string;
   name: string;
   color: string;
 }
 
 export function generateUsername(): UserIdentity {
   return {
+    id: `user-${Math.random().toString(36).slice(2, 10)}`,
     name: `${pick(ADJECTIVES)} ${pick(NOUNS)}`,
     color: pick(COLORS),
   };
@@ -38,7 +40,11 @@ export function getOrCreateIdentity(): UserIdentity {
   const stored = sessionStorage.getItem(STORAGE_KEY);
   if (stored) {
     try {
-      return JSON.parse(stored) as UserIdentity;
+      const parsed = JSON.parse(stored) as UserIdentity;
+      if (parsed.id) return parsed;
+      const withId = { ...parsed, id: `user-${Math.random().toString(36).slice(2, 10)}` };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(withId));
+      return withId;
     } catch {
       // fall through
     }
