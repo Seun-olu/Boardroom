@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { BoardState } from "@/lib/board-engine";
 import { defaultBoardState } from "@/lib/board-engine";
 import type { BoardMeta, BoardColumn, Card } from "@/lib/types";
+import { normalizeCards } from "@/lib/story-points";
 import {
   getPublishableKey,
   getSecretKey,
@@ -47,8 +48,11 @@ export async function loadBoardState(roomId: string): Promise<BoardState> {
 
   return {
     columns: data.columns as BoardColumn[],
-    cards: data.cards as Card[],
-    board: data.board as BoardMeta,
+    cards: normalizeCards(data.cards as Card[]),
+    board: {
+      ...(data.board as BoardMeta),
+      version: (data.board as BoardMeta).version ?? 1,
+    },
   };
 }
 

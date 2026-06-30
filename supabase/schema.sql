@@ -4,7 +4,7 @@ create table if not exists public.boards (
   id text primary key,
   columns jsonb not null default '[]'::jsonb,
   cards jsonb not null default '[]'::jsonb,
-  board jsonb not null default '{"name":"Untitled Board","initialized":false}'::jsonb,
+  board jsonb not null default '{"name":"Untitled Board","initialized":false,"version":1}'::jsonb,
   updated_at timestamptz not null default now()
 );
 

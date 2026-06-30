@@ -41,3 +41,29 @@ export function pickColumnColor(index: number): string {
   ];
   return colors[index % colors.length];
 }
+
+const LANE_PREFIX = "lane:";
+
+export function laneSortableId(columnId: string): string {
+  return `${LANE_PREFIX}${columnId}`;
+}
+
+export function parseLaneSortableId(id: string | number): string | null {
+  const s = String(id);
+  return s.startsWith(LANE_PREFIX) ? s.slice(LANE_PREFIX.length) : null;
+}
+
+export function reorderColumnsList(
+  columns: BoardColumn[],
+  columnId: string,
+  targetOrder: number
+): BoardColumn[] {
+  const sorted = sortedColumns(columns);
+  const fromIndex = sorted.findIndex((c) => c.id === columnId);
+  if (fromIndex < 0 || fromIndex === targetOrder) return sorted;
+
+  const next = [...sorted];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(targetOrder, 0, moved!);
+  return next.map((c, i) => ({ ...c, order: i }));
+}

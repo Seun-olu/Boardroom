@@ -25,7 +25,7 @@ export function HomePage() {
             <span className="block text-muted">In real time.</span>
           </h1>
           <p className="mx-auto mt-8 max-w-md text-sm leading-relaxed text-muted">
-            A shared kanban board with optimistic updates, dynamic columns,
+            A shared kanban board with optimistic updates, draggable swimlanes,
             connection state handling, and conflict resolution.
           </p>
 
@@ -37,7 +37,7 @@ export function HomePage() {
         <div className="mt-20 grid max-w-3xl grid-cols-1 gap-4 md:grid-cols-3">
           {[
             { title: "Optimistic UI", desc: "Cards move instantly. Failed moves roll back with a toast.", color: "#6366F1" },
-            { title: "Dynamic columns", desc: "Add workflow stages on the fly. Everyone sees them live.", color: "#22D3EE" },
+            { title: "Swimlanes", desc: "Add and reorder workflow lanes. Everyone sees them live.", color: "#22D3EE" },
             { title: "Conflict handling", desc: "Last-write-wins when two people edit the same card.", color: "#F59E0B" },
           ].map((item) => (
             <div

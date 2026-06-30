@@ -10,6 +10,7 @@ interface ModalProps {
   description?: string;
   children: React.ReactNode;
   size?: "sm" | "md" | "lg";
+  dismissible?: boolean;
 }
 
 export function Modal({
@@ -19,13 +20,14 @@ export function Modal({
   description,
   children,
   size = "md",
+  dismissible = true,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (dismissible && e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -33,7 +35,7 @@ export function Modal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [open, onClose, dismissible]);
 
   if (!open) return null;
 
@@ -47,7 +49,7 @@ export function Modal({
       aria-modal="true"
       aria-labelledby="modal-title"
       onClick={(e) => {
-        if (e.target === overlayRef.current) onClose();
+        if (dismissible && e.target === overlayRef.current) onClose();
       }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />

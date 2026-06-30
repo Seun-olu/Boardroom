@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { Dropdown } from "@/components/ui/Dropdown";
 import { generateRoomId } from "@/lib/board-utils";
 import { TEMPLATE_OPTIONS } from "@/lib/templates";
 import type { BoardTemplate } from "@/lib/types";
@@ -17,7 +18,7 @@ interface CreateBoardModalProps {
 export function CreateBoardModal({ open, onClose }: CreateBoardModalProps) {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [template, setTemplate] = useState<BoardTemplate>("default");
+  const [template, setTemplate] = useState<BoardTemplate>("blank");
   const [loading, setLoading] = useState(false);
 
   const previewSlug = name.trim() ? generateRoomId(name) : "my-board-xxxxxx";
@@ -52,11 +53,11 @@ export function CreateBoardModal({ open, onClose }: CreateBoardModalProps) {
           onKeyDown={(e) => e.key === "Enter" && handleCreate()}
         />
 
-        <Select
+        <Dropdown
           id="template"
           label="Template"
           value={template}
-          onChange={(e) => setTemplate(e.target.value as BoardTemplate)}
+          onChange={(v) => setTemplate(v as BoardTemplate)}
           options={TEMPLATE_OPTIONS.map((t) => ({
             value: t.id,
             label: `${t.label} — ${t.desc}`,

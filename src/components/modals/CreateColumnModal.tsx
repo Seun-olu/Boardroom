@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { COLUMN_COLORS } from "@/lib/types";
+import { LANE } from "@/lib/labels";
 import clsx from "clsx";
 
 interface CreateColumnModalProps {
@@ -29,14 +30,14 @@ export function CreateColumnModal({ open, onClose, onSubmit }: CreateColumnModal
     <Modal
       open={open}
       onClose={onClose}
-      title="New column"
-      description="Add a workflow stage to your board."
+      title={LANE.new}
+      description="Add a swimlane to your board workflow."
       size="sm"
     >
       <div className="space-y-5">
         <Input
           id="col-title"
-          label="Column name"
+          label={LANE.name}
           placeholder="Review, Testing, Blocked..."
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -70,7 +71,7 @@ export function CreateColumnModal({ open, onClose, onSubmit }: CreateColumnModal
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!title.trim()} type="button">
-            Add column
+            {LANE.add}
           </Button>
         </div>
       </div>

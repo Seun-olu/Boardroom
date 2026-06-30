@@ -16,9 +16,12 @@ import type {
   Priority,
   QueuedAction,
   ServerMessage,
+  Subtask,
 } from "@/lib/types";
+import { normalizeCard } from "@/lib/story-points";
 import type { UserIdentity } from "@/lib/username";
-import { pickColumnColor } from "@/lib/board-utils";
+import { pickColumnColor, reorderColumnsList } from "@/lib/board-utils";
+import { LANE } from "@/lib/labels";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface UseBoardOptions {
@@ -42,6 +45,7 @@ interface UseBoardReturn {
     title: string;
     description?: string;
     priority?: Priority;
+    storyPoints?: number | null;
     column: string;
   }) => void;
   updateCard: (data: {
@@ -49,9 +53,21 @@ interface UseBoardReturn {
     title?: string;
     description?: string;
     priority?: Priority;
+    storyPoints?: number | null;
+    subtasks?: Subtask[];
     expectedVersion: number;
   }) => void;
   addColumn: (title: string, color?: string) => void;
+  deleteCard: (cardId: string, expectedVersion: number) => void;
+  deleteColumn: (columnId: string, expectedVersion: number) => void;
+  updateColumn: (data: {
+    columnId: string;
+    title?: string;
+    color?: string;
+    expectedVersion: number;
+  }) => void;
+  moveColumn: (columnId: string, order: number, expectedVersion: number) => void;
+  updateBoard: (name: string, expectedVersion: number) => void;
   pendingCount: number;
 }
 
@@ -102,7 +118,13 @@ async function postAction(roomId: string, msg: ClientMessage): Promise<ServerMes
 export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): UseBoardReturn {
   const [columns, setColumns] = useState<BoardColumn[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
-  const [board, setBoard] = useState<BoardMeta>({ name: "Untitled Board", initialized: false });
+  const [board, setBoard] = useState<BoardMeta>({
+    name: "Untitled Board",
+    initialized: false,
+    version: 1,
+  });
+  const boardRef = useRef(board);
+  boardRef.current = board;
   const [users, setUsers] = useState<PresenceUser[]>([]);
   const [connectionState, setConnectionState] = useState<ConnectionState>("reconnecting");
   const [isLoading, setIsLoading] = useState(true);
@@ -128,21 +150,37 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
   }, []);
 
   const applyCardUpdate = useCallback((updated: Card) => {
+    const card = normalizeCard(updated);
     setCards((prev) => {
-      const exists = prev.some((c) => c.id === updated.id);
-      if (!exists) return [...prev, updated];
-      return prev.map((c) => (c.id === updated.id ? updated : c));
+      const exists = prev.some((c) => c.id === card.id);
+      if (!exists) return [...prev, card];
+      return prev.map((c) => (c.id === card.id ? card : c));
     });
   }, []);
 
   const rollbackAction = useCallback(
     (action: QueuedAction) => {
-      if (action.previousCard) {
-        applyCardUpdate(action.previousCard);
+      if (action.previousBoard) {
+        boardRef.current = action.previousBoard;
+        setBoard(action.previousBoard);
+      } else if (action.previousColumns && action.previousCards) {
+        setColumns(action.previousColumns);
+        setCards(action.previousCards);
+      } else if (action.previousCard) {
+        const stillExists = cardsRef.current.some((c) => c.id === action.previousCard!.id);
+        if (stillExists) {
+          applyCardUpdate(action.previousCard);
+        } else {
+          setCards((prev) => [...prev, action.previousCard!]);
+        }
       } else if (action.optimisticCard) {
         setCards((prev) => prev.filter((c) => c.id !== action.optimisticCard!.id));
       } else if (action.optimisticColumn) {
         setColumns((prev) => prev.filter((c) => c.id !== action.optimisticColumn!.id));
+      } else if (action.previousColumn) {
+        setColumns((prev) =>
+          prev.map((c) => (c.id === action.previousColumn!.id ? action.previousColumn! : c))
+        );
       }
     },
     [applyCardUpdate]
@@ -153,7 +191,8 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
       switch (msg.type) {
         case "sync":
           setColumns(msg.columns);
-          setCards(msg.cards);
+          setCards(msg.cards.map(normalizeCard));
+          boardRef.current = msg.board;
           setBoard(msg.board);
           if (msg.users.length > 0) setUsers(msg.users);
           if (!hasSyncedRef.current) {
@@ -170,19 +209,77 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
           }
           break;
 
-        case "card_added":
-          applyCardUpdate(msg.card);
+        case "card_added": {
+          const pending = msg.clientActionId
+            ? pendingActionsRef.current.get(msg.clientActionId)
+            : undefined;
+          if (pending?.optimisticCard) {
+            setCards((prev) => {
+              const withoutTemp = prev.filter(
+                (c) => c.id !== pending.optimisticCard!.id && c.id !== msg.card.id
+              );
+              return [...withoutTemp, normalizeCard(msg.card)];
+            });
+          } else {
+            applyCardUpdate(msg.card);
+          }
+          if (msg.clientActionId) {
+            pendingActionsRef.current.delete(msg.clientActionId);
+            updatePendingCount();
+          }
+          break;
+        }
+
+        case "column_added": {
+          const pending = msg.clientActionId
+            ? pendingActionsRef.current.get(msg.clientActionId)
+            : undefined;
+          setColumns((prev) => {
+            const withoutTemp = pending?.optimisticColumn
+              ? prev.filter(
+                  (c) =>
+                    c.id !== pending.optimisticColumn!.id && c.id !== msg.column.id
+                )
+              : prev;
+            if (withoutTemp.some((c) => c.id === msg.column.id)) return withoutTemp;
+            return [...withoutTemp, msg.column];
+          });
+          if (msg.clientActionId) {
+            pendingActionsRef.current.delete(msg.clientActionId);
+            updatePendingCount();
+          }
+          break;
+        }
+
+        case "card_deleted":
+          setCards((prev) => prev.filter((c) => c.id !== msg.cardId));
           if (msg.clientActionId) {
             pendingActionsRef.current.delete(msg.clientActionId);
             updatePendingCount();
           }
           break;
 
-        case "column_added":
-          setColumns((prev) => {
-            if (prev.some((c) => c.id === msg.column.id)) return prev;
-            return [...prev, msg.column];
-          });
+        case "column_deleted":
+          setColumns((prev) => prev.filter((c) => c.id !== msg.columnId));
+          setCards((prev) => prev.filter((c) => c.column !== msg.columnId));
+          if (msg.clientActionId) {
+            pendingActionsRef.current.delete(msg.clientActionId);
+            updatePendingCount();
+          }
+          break;
+
+        case "column_updated":
+          setColumns((prev) =>
+            prev.map((c) => (c.id === msg.column.id ? msg.column : c))
+          );
+          if (msg.clientActionId) {
+            pendingActionsRef.current.delete(msg.clientActionId);
+            updatePendingCount();
+          }
+          break;
+
+        case "columns_reordered":
+          setColumns(msg.columns);
           if (msg.clientActionId) {
             pendingActionsRef.current.delete(msg.clientActionId);
             updatePendingCount();
@@ -190,7 +287,12 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
           break;
 
         case "board_updated":
+          boardRef.current = msg.board;
           setBoard(msg.board);
+          if (msg.clientActionId) {
+            pendingActionsRef.current.delete(msg.clientActionId);
+            updatePendingCount();
+          }
           break;
 
         case "conflict": {
@@ -230,14 +332,56 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
     const cfg = initConfigRef.current;
     if (!cfg || initSentRef.current) return;
 
+    const current = boardRef.current;
+    if (current.initialized) {
+      if (
+        cfg.name &&
+        cfg.name !== "Untitled Board" &&
+        current.name === "Untitled Board"
+      ) {
+        const clientActionId = nanoid();
+        const messages = await postAction(roomId, {
+          type: "update_board",
+          name: cfg.name,
+          expectedVersion: current.version,
+          userName: identity.name,
+          clientActionId,
+        });
+        for (const msg of messages) handleServerMessage(msg);
+      }
+      return;
+    }
+
     initSentRef.current = true;
-    const messages = await postAction(roomId, {
-      type: "init_board",
-      name: cfg.name,
-      template: cfg.template,
-    });
-    for (const msg of messages) handleServerMessage(msg);
-  }, [roomId, handleServerMessage]);
+    try {
+      const messages = await postAction(roomId, {
+        type: "init_board",
+        name: cfg.name,
+        template: cfg.template,
+      });
+      for (const msg of messages) handleServerMessage(msg);
+
+      const after = boardRef.current;
+      if (
+        messages.length === 0 &&
+        cfg.name &&
+        cfg.name !== "Untitled Board" &&
+        after.name === "Untitled Board"
+      ) {
+        const clientActionId = nanoid();
+        const renameMessages = await postAction(roomId, {
+          type: "update_board",
+          name: cfg.name,
+          expectedVersion: after.version,
+          userName: identity.name,
+          clientActionId,
+        });
+        for (const msg of renameMessages) handleServerMessage(msg);
+      }
+    } catch {
+      initSentRef.current = false;
+    }
+  }, [roomId, identity.name, handleServerMessage]);
 
   const flushQueue = useCallback(async () => {
     if (queueRef.current.length === 0 || !onlineRef.current) return;
@@ -312,7 +456,8 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
           const sync = (await res.json()) as ServerMessage;
           if (sync.type === "sync") {
             handleServerMessage(sync);
-            if (!sync.board.initialized) {
+            const hasContent = sync.columns.length > 0 || sync.cards.length > 0;
+            if (!sync.board.initialized && (!hasContent || initConfigRef.current)) {
               await maybeInitBoard();
             }
           }
@@ -350,6 +495,7 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
     return () => {
       cancelled = true;
       clearTimeout(loadTimeout);
+      initSentRef.current = false;
       void supabase.removeChannel(channel);
       channelRef.current = null;
     };
@@ -452,19 +598,27 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
   );
 
   const addCard = useCallback(
-    (data: { title: string; description?: string; priority?: Priority; column: string }) => {
+    (data: {
+      title: string;
+      description?: string;
+      priority?: Priority;
+      storyPoints?: number | null;
+      column: string;
+    }) => {
       const clientActionId = nanoid();
-      const optimistic: Card = {
+      const optimistic: Card = normalizeCard({
         id: `temp-${clientActionId}`,
         title: data.title,
         description: data.description ?? "",
         column: data.column,
         order: cardsRef.current.filter((c) => c.column === data.column).length,
         priority: data.priority ?? "medium",
+        storyPoints: data.storyPoints ?? null,
+        subtasks: [],
         version: 0,
         updatedAt: Date.now(),
         updatedBy: identity.name,
-      };
+      });
 
       setCards((prev) => [...prev, optimistic]);
 
@@ -474,6 +628,7 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
           title: data.title,
           description: data.description,
           priority: data.priority,
+          storyPoints: data.storyPoints ?? null,
           column: data.column,
           clientActionId,
           userName: identity.name,
@@ -490,21 +645,25 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
       title?: string;
       description?: string;
       priority?: Priority;
+      storyPoints?: number | null;
+      subtasks?: Subtask[];
       expectedVersion: number;
     }) => {
       const previousCard = cardsRef.current.find((c) => c.id === data.cardId);
       if (!previousCard) return;
 
       const clientActionId = nanoid();
-      const optimistic: Card = {
+      const optimistic: Card = normalizeCard({
         ...previousCard,
         title: data.title ?? previousCard.title,
         description: data.description ?? previousCard.description,
         priority: data.priority ?? previousCard.priority,
+        storyPoints: data.storyPoints !== undefined ? data.storyPoints : previousCard.storyPoints,
+        subtasks: data.subtasks !== undefined ? data.subtasks : previousCard.subtasks,
         version: data.expectedVersion + 1,
         updatedAt: Date.now(),
         updatedBy: identity.name,
-      };
+      });
 
       applyCardUpdate(optimistic);
 
@@ -515,6 +674,8 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
           title: data.title,
           description: data.description,
           priority: data.priority,
+          storyPoints: data.storyPoints,
+          subtasks: data.subtasks,
           expectedVersion: data.expectedVersion,
           userName: identity.name,
           clientActionId,
@@ -553,6 +714,156 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
     [identity.name, sendAction]
   );
 
+  const deleteCard = useCallback(
+    (cardId: string, expectedVersion: number) => {
+      const previousCard = cardsRef.current.find((c) => c.id === cardId);
+      if (!previousCard) return;
+
+      const clientActionId = nanoid();
+      setCards((prev) => prev.filter((c) => c.id !== cardId));
+
+      void sendAction(
+        {
+          type: "delete_card",
+          cardId,
+          expectedVersion,
+          userName: identity.name,
+          clientActionId,
+        },
+        { id: clientActionId, previousCard, createdAt: Date.now() }
+      );
+    },
+    [identity.name, sendAction]
+  );
+
+  const deleteColumn = useCallback(
+    (columnId: string, expectedVersion: number) => {
+      const previousColumns = [...columnsRef.current];
+      const previousCards = [...cardsRef.current];
+      if (previousColumns.length <= 1) {
+        toast.error("Cannot delete", { description: LANE.keepOne });
+        return;
+      }
+
+      const clientActionId = nanoid();
+      setColumns((prev) => prev.filter((c) => c.id !== columnId));
+      setCards((prev) => prev.filter((c) => c.column !== columnId));
+
+      void sendAction(
+        {
+          type: "delete_column",
+          columnId,
+          expectedVersion,
+          userName: identity.name,
+          clientActionId,
+        },
+        {
+          id: clientActionId,
+          previousColumns,
+          previousCards,
+          createdAt: Date.now(),
+        }
+      );
+    },
+    [identity.name, sendAction]
+  );
+
+  const updateColumn = useCallback(
+    (data: {
+      columnId: string;
+      title?: string;
+      color?: string;
+      expectedVersion: number;
+    }) => {
+      const previousColumn = columnsRef.current.find((c) => c.id === data.columnId);
+      if (!previousColumn) return;
+
+      const clientActionId = nanoid();
+      const optimistic: BoardColumn = {
+        ...previousColumn,
+        title: data.title ?? previousColumn.title,
+        color: data.color ?? previousColumn.color,
+        version: data.expectedVersion + 1,
+      };
+
+      setColumns((prev) => prev.map((c) => (c.id === data.columnId ? optimistic : c)));
+
+      void sendAction(
+        {
+          type: "update_column",
+          columnId: data.columnId,
+          title: data.title,
+          color: data.color,
+          expectedVersion: data.expectedVersion,
+          userName: identity.name,
+          clientActionId,
+        },
+        {
+          id: clientActionId,
+          previousColumn,
+          createdAt: Date.now(),
+        }
+      );
+    },
+    [identity.name, sendAction]
+  );
+
+  const moveColumn = useCallback(
+    (columnId: string, order: number, expectedVersion: number) => {
+      const previousColumns = [...columnsRef.current];
+      const clientActionId = nanoid();
+
+      setColumns((prev) => reorderColumnsList(prev, columnId, order));
+
+      void sendAction(
+        {
+          type: "move_column",
+          columnId,
+          order,
+          expectedVersion,
+          userName: identity.name,
+          clientActionId,
+        },
+        {
+          id: clientActionId,
+          previousColumns,
+          createdAt: Date.now(),
+        }
+      );
+    },
+    [identity.name, sendAction]
+  );
+
+  const updateBoard = useCallback(
+    (name: string, expectedVersion: number) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+
+      const previousBoard = { ...boardRef.current };
+      const clientActionId = nanoid();
+      const optimistic = {
+        ...previousBoard,
+        name: trimmed,
+        version: expectedVersion + 1,
+      };
+
+      boardRef.current = optimistic;
+      setBoard(optimistic);
+
+      void sendAction(
+        {
+          type: "update_board",
+          name: trimmed,
+          expectedVersion,
+          userName: identity.name,
+          clientActionId,
+        },
+        { id: clientActionId, previousBoard, createdAt: Date.now() }
+      );
+    },
+    [identity.name, sendAction]
+  );
+
   return {
     columns,
     cards,
@@ -564,6 +875,11 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
     addCard,
     updateCard,
     addColumn,
+    deleteCard,
+    deleteColumn,
+    updateColumn,
+    moveColumn,
+    updateBoard,
     pendingCount,
   };
 }

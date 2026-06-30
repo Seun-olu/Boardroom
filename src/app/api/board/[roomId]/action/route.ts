@@ -31,7 +31,11 @@ export async function POST(
       (m) =>
         m.type === "card_updated" ||
         m.type === "card_added" ||
+        m.type === "card_deleted" ||
         m.type === "column_added" ||
+        m.type === "column_updated" ||
+        m.type === "column_deleted" ||
+        m.type === "columns_reordered" ||
         m.type === "board_updated" ||
         (m.type === "sync" && msg.type === "init_board")
     );

@@ -11,13 +11,22 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import type { BoardColumn, Card, Priority } from "@/lib/types";
-import { cardsForColumn, sortedColumns } from "@/lib/board-utils";
-import { Column } from "./Column";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import type { BoardColumn, Card, Priority, Subtask } from "@/lib/types";
+import {
+  cardsForColumn,
+  laneSortableId,
+  parseLaneSortableId,
+  sortedColumns,
+} from "@/lib/board-utils";
+import { LANE } from "@/lib/labels";
+import { Column, LaneOverlay } from "./Column";
 import { KanbanCardOverlay } from "./KanbanCard";
 import { CreateColumnModal } from "./modals/CreateColumnModal";
 import { CardDetailDrawer } from "./CardDetailDrawer";
-import { Button } from "./ui/Button";
 
 interface BoardProps {
   columns: BoardColumn[];
@@ -28,10 +37,12 @@ interface BoardProps {
     order: number,
     expectedVersion: number
   ) => void;
+  onMoveColumn: (columnId: string, order: number, expectedVersion: number) => void;
   onAddCard: (data: {
     title: string;
     description?: string;
     priority?: Priority;
+    storyPoints?: number | null;
     column: string;
   }) => void;
   onUpdateCard: (data: {
@@ -39,51 +50,101 @@ interface BoardProps {
     title?: string;
     description?: string;
     priority?: Priority;
+    storyPoints?: number | null;
+    subtasks?: Subtask[];
     expectedVersion: number;
   }) => void;
+  onDeleteCard: (cardId: string, expectedVersion: number) => void;
   onAddColumn: (title: string, color: string) => void;
+  onUpdateColumn: (data: {
+    columnId: string;
+    title?: string;
+    expectedVersion: number;
+  }) => void;
+  onDeleteColumn: (columnId: string, expectedVersion: number) => void;
 }
 
 export function Board({
   columns,
   cards,
   onMoveCard,
+  onMoveColumn,
   onAddCard,
   onUpdateCard,
+  onDeleteCard,
   onAddColumn,
+  onUpdateColumn,
+  onDeleteColumn,
 }: BoardProps) {
   const [activeCard, setActiveCard] = useState<Card | null>(null);
+  const [activeLane, setActiveLane] = useState<BoardColumn | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [columnModalOpen, setColumnModalOpen] = useState(false);
+  const [laneModalOpen, setLaneModalOpen] = useState(false);
 
   const orderedColumns = sortedColumns(columns);
+  const laneIds = orderedColumns.map((c) => laneSortableId(c.id));
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
+  const resolveColumnId = (overId: string | number): string | undefined => {
+    const laneId = parseLaneSortableId(overId);
+    if (laneId) return laneId;
+    const col = orderedColumns.find((c) => c.id === String(overId));
+    if (col) return col.id;
+    return cards.find((c) => c.id === String(overId))?.column;
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
+    const type = event.active.data.current?.type;
+    if (type === "lane") {
+      const columnId = event.active.data.current?.columnId as string;
+      setActiveLane(orderedColumns.find((c) => c.id === columnId) ?? null);
+      return;
+    }
     const card = cards.find((c) => c.id === event.active.id);
     setActiveCard(card ?? null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    const type = active.data.current?.type;
+
+    if (type === "lane") {
+      setActiveLane(null);
+      if (!over) return;
+
+      const activeColumnId = parseLaneSortableId(active.id);
+      const overColumnId =
+        parseLaneSortableId(over.id) ?? resolveColumnId(over.id) ?? null;
+      let targetId = overColumnId;
+      if (!activeColumnId || !targetId) return;
+
+      const oldIndex = orderedColumns.findIndex((c) => c.id === activeColumnId);
+      const newIndex = orderedColumns.findIndex((c) => c.id === targetId);
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+
+      const column = orderedColumns[oldIndex]!;
+      onMoveColumn(column.id, newIndex, column.version);
+      return;
+    }
+
     setActiveCard(null);
     if (!over) return;
 
     const draggedCard = cards.find((c) => c.id === active.id);
     if (!draggedCard) return;
 
-    const overColumn = orderedColumns.find((c) => c.id === over.id);
-    const overCard = cards.find((c) => c.id === over.id);
+    const targetColumn = resolveColumnId(over.id);
+    if (!targetColumn) return;
 
-    const targetColumn = overColumn?.id ?? overCard?.column ?? draggedCard.column;
     const columnCards = cardsForColumn(cards, targetColumn).filter(
       (c) => c.id !== draggedCard.id
     );
 
     let targetOrder = columnCards.length;
+    const overCard = cards.find((c) => c.id === over.id);
     if (overCard && overCard.id !== draggedCard.id) {
       const overIndex = columnCards.findIndex((c) => c.id === overCard.id);
       targetOrder = overIndex >= 0 ? overIndex : columnCards.length;
@@ -107,32 +168,44 @@ export function Board({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {orderedColumns.map((col) => (
-            <Column
-              key={col.id}
-              column={col}
-              cards={cardsForColumn(cards, col.id)}
-              onAddCard={(data) => onAddCard({ ...data, column: col.id })}
-              onCardClick={setSelectedCard}
-            />
-          ))}
+        <div className="flex items-start gap-4 overflow-x-auto pb-4">
+          <SortableContext items={laneIds} strategy={horizontalListSortingStrategy}>
+            {orderedColumns.map((col) => (
+              <Column
+                key={col.id}
+                column={col}
+                cards={cardsForColumn(cards, col.id)}
+                canDelete={orderedColumns.length > 1}
+                onAddCard={(data) => onAddCard({ ...data, column: col.id })}
+                onCardClick={setSelectedCard}
+                onRenameColumn={(columnId, title, expectedVersion) =>
+                  onUpdateColumn({ columnId, title, expectedVersion })
+                }
+                onDeleteColumn={onDeleteColumn}
+              />
+            ))}
+          </SortableContext>
 
-          <div className="flex w-72 shrink-0 flex-col">
-            <Button
-              variant="secondary"
-              className="h-full min-h-[120px] w-full border-dashed"
-              onClick={() => setColumnModalOpen(true)}
-            >
-              + Add column
-            </Button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setLaneModalOpen(true)}
+            className="mt-8 flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-dashed border-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:border-accent/50 hover:text-accent"
+            title={LANE.add}
+          >
+            <span className="text-sm leading-none">+</span>
+            {LANE.singular}
+          </button>
         </div>
 
         <DragOverlay
           dropAnimation={{ duration: 200, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }}
         >
-          {activeCard ? (
+          {activeLane ? (
+            <LaneOverlay
+              column={activeLane}
+              cardCount={cardsForColumn(cards, activeLane.id).length}
+            />
+          ) : activeCard ? (
             <KanbanCardOverlay
               card={activeCard}
               color={orderedColumns.find((c) => c.id === activeCard.column)?.color}
@@ -142,8 +215,8 @@ export function Board({
       </DndContext>
 
       <CreateColumnModal
-        open={columnModalOpen}
-        onClose={() => setColumnModalOpen(false)}
+        open={laneModalOpen}
+        onClose={() => setLaneModalOpen(false)}
         onSubmit={onAddColumn}
       />
 
@@ -152,6 +225,10 @@ export function Board({
         columnColor={selectedColumnColor}
         onClose={() => setSelectedCard(null)}
         onSave={onUpdateCard}
+        onDelete={(cardId, expectedVersion) => {
+          onDeleteCard(cardId, expectedVersion);
+          setSelectedCard(null);
+        }}
       />
     </>
   );

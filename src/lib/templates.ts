@@ -1,4 +1,5 @@
 import type { BoardColumn, BoardTemplate, Card } from "./types";
+import { templateCard } from "./template-cards";
 
 export const DEFAULT_COLUMNS: BoardColumn[] = [
   { id: "todo", title: "Todo", order: 0, color: "#3B82F6", version: 1 },
@@ -7,7 +8,7 @@ export const DEFAULT_COLUMNS: BoardColumn[] = [
 ];
 
 const SEED_CARDS: Card[] = [
-  {
+  templateCard({
     id: "seed-1",
     title: "Define API contracts",
     description: "Document REST endpoints and WebSocket message shapes.",
@@ -17,8 +18,8 @@ const SEED_CARDS: Card[] = [
     version: 1,
     updatedAt: Date.now(),
     updatedBy: "system",
-  },
-  {
+  }),
+  templateCard({
     id: "seed-2",
     title: "Build optimistic UI layer",
     description: "Cards move instantly, roll back on conflict.",
@@ -28,8 +29,8 @@ const SEED_CARDS: Card[] = [
     version: 1,
     updatedAt: Date.now(),
     updatedBy: "system",
-  },
-  {
+  }),
+  templateCard({
     id: "seed-3",
     title: "Wire up realtime sync",
     description: "Supabase Realtime with presence and conflict handling.",
@@ -39,8 +40,8 @@ const SEED_CARDS: Card[] = [
     version: 1,
     updatedAt: Date.now(),
     updatedBy: "system",
-  },
-  {
+  }),
+  templateCard({
     id: "seed-4",
     title: "Ship the demo",
     description: "Deploy to Netlify + Supabase, write case study.",
@@ -50,7 +51,7 @@ const SEED_CARDS: Card[] = [
     version: 1,
     updatedAt: Date.now(),
     updatedBy: "system",
-  },
+  }),
 ];
 
 const SOFTWARE_COLUMNS: BoardColumn[] = [
@@ -62,7 +63,7 @@ const SOFTWARE_COLUMNS: BoardColumn[] = [
 ];
 
 const SOFTWARE_CARDS: Card[] = [
-  {
+  templateCard({
     id: "sw-1",
     title: "User authentication flow",
     description: "OAuth + session management",
@@ -72,8 +73,8 @@ const SOFTWARE_CARDS: Card[] = [
     version: 1,
     updatedAt: Date.now(),
     updatedBy: "system",
-  },
-  {
+  }),
+  templateCard({
     id: "sw-2",
     title: "Dashboard widgets",
     description: "Charts and KPI cards",
@@ -83,8 +84,8 @@ const SOFTWARE_CARDS: Card[] = [
     version: 1,
     updatedAt: Date.now(),
     updatedBy: "system",
-  },
-  {
+  }),
+  templateCard({
     id: "sw-3",
     title: "API rate limiting",
     description: "Token bucket per user",
@@ -94,7 +95,7 @@ const SOFTWARE_CARDS: Card[] = [
     version: 1,
     updatedAt: Date.now(),
     updatedBy: "system",
-  },
+  }),
 ];
 
 export function getTemplateData(template: BoardTemplate): {
@@ -102,6 +103,8 @@ export function getTemplateData(template: BoardTemplate): {
   cards: Card[];
 } {
   switch (template) {
+    case "blank":
+      return { columns: [], cards: [] };
     case "empty":
       return { columns: [...DEFAULT_COLUMNS], cards: [] };
     case "software":
@@ -112,7 +115,8 @@ export function getTemplateData(template: BoardTemplate): {
 }
 
 export const TEMPLATE_OPTIONS: { id: BoardTemplate; label: string; desc: string }[] = [
-  { id: "default", label: "Standard", desc: "Todo, Doing, Done with sample cards" },
+  { id: "blank", label: "Blank", desc: "Empty board — add your own lanes" },
+  { id: "empty", label: "Starter lanes", desc: "Todo, Doing, Done — no cards" },
+  { id: "default", label: "Demo", desc: "Sample cards for exploring the UI" },
   { id: "software", label: "Software", desc: "Backlog → Done workflow" },
-  { id: "empty", label: "Empty", desc: "Columns only, no cards" },
 ];

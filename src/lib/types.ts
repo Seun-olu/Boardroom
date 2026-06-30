@@ -1,5 +1,5 @@
 export type Priority = "low" | "medium" | "high" | "urgent";
-export type BoardTemplate = "default" | "empty" | "software";
+export type BoardTemplate = "blank" | "default" | "empty" | "software";
 
 export interface BoardColumn {
   id: string;
@@ -9,6 +9,12 @@ export interface BoardColumn {
   version: number;
 }
 
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
 export interface Card {
   id: string;
   title: string;
@@ -16,6 +22,8 @@ export interface Card {
   column: string;
   order: number;
   priority: Priority;
+  storyPoints: number | null;
+  subtasks: Subtask[];
   version: number;
   updatedAt: number;
   updatedBy: string;
@@ -24,6 +32,7 @@ export interface Card {
 export interface BoardMeta {
   name: string;
   initialized: boolean;
+  version: number;
 }
 
 export interface PresenceUser {
@@ -80,6 +89,7 @@ export interface AddCardMessage {
   title: string;
   description?: string;
   priority?: Priority;
+  storyPoints?: number | null;
   column: string;
   clientActionId: string;
   userName: string;
@@ -91,6 +101,8 @@ export interface UpdateCardMessage {
   title?: string;
   description?: string;
   priority?: Priority;
+  storyPoints?: number | null;
+  subtasks?: Subtask[];
   expectedVersion: number;
   userName: string;
   clientActionId: string;
@@ -104,6 +116,49 @@ export interface AddColumnMessage {
   userName: string;
 }
 
+export interface UpdateBoardMessage {
+  type: "update_board";
+  name: string;
+  expectedVersion: number;
+  userName: string;
+  clientActionId: string;
+}
+
+export interface MoveColumnMessage {
+  type: "move_column";
+  columnId: string;
+  order: number;
+  expectedVersion: number;
+  userName: string;
+  clientActionId: string;
+}
+
+export interface DeleteCardMessage {
+  type: "delete_card";
+  cardId: string;
+  expectedVersion: number;
+  userName: string;
+  clientActionId: string;
+}
+
+export interface DeleteColumnMessage {
+  type: "delete_column";
+  columnId: string;
+  expectedVersion: number;
+  userName: string;
+  clientActionId: string;
+}
+
+export interface UpdateColumnMessage {
+  type: "update_column";
+  columnId: string;
+  title?: string;
+  color?: string;
+  expectedVersion: number;
+  userName: string;
+  clientActionId: string;
+}
+
 export interface FlushQueueMessage {
   type: "flush_queue";
   actions: ClientMessage[];
@@ -111,10 +166,15 @@ export interface FlushQueueMessage {
 
 export type ClientMessage =
   | InitBoardMessage
+  | UpdateBoardMessage
   | MoveCardMessage
   | AddCardMessage
   | UpdateCardMessage
   | AddColumnMessage
+  | DeleteCardMessage
+  | DeleteColumnMessage
+  | UpdateColumnMessage
+  | MoveColumnMessage
   | FlushQueueMessage;
 
 // ── Server → Client ──────────────────────────────────────────
@@ -148,6 +208,31 @@ export interface ColumnAddedMessage {
 export interface BoardUpdatedMessage {
   type: "board_updated";
   board: BoardMeta;
+  clientActionId?: string;
+}
+
+export interface CardDeletedMessage {
+  type: "card_deleted";
+  cardId: string;
+  clientActionId?: string;
+}
+
+export interface ColumnDeletedMessage {
+  type: "column_deleted";
+  columnId: string;
+  clientActionId?: string;
+}
+
+export interface ColumnUpdatedMessage {
+  type: "column_updated";
+  column: BoardColumn;
+  clientActionId?: string;
+}
+
+export interface ColumnsReorderedMessage {
+  type: "columns_reordered";
+  columns: BoardColumn[];
+  clientActionId?: string;
 }
 
 export interface ConflictMessage {
@@ -174,6 +259,10 @@ export type ServerMessage =
   | CardUpdatedMessage
   | CardAddedMessage
   | ColumnAddedMessage
+  | ColumnUpdatedMessage
+  | ColumnsReorderedMessage
+  | ColumnDeletedMessage
+  | CardDeletedMessage
   | BoardUpdatedMessage
   | ConflictMessage
   | PresenceMessage
@@ -184,6 +273,10 @@ export interface QueuedAction {
   message: Exclude<ClientMessage, InitBoardMessage | FlushQueueMessage>;
   optimisticCard?: Card;
   optimisticColumn?: BoardColumn;
+  previousColumn?: BoardColumn;
+  previousBoard?: BoardMeta;
   previousCard?: Card;
+  previousColumns?: BoardColumn[];
+  previousCards?: Card[];
   createdAt: number;
 }
