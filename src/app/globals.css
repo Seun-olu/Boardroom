@@ -24,12 +24,15 @@
 html {
   background: var(--bg-base);
   color: #fff;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   font-family: var(--font-body);
   background: var(--bg-base);
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
 }
 
 ::selection {
@@ -49,4 +52,8 @@ body {
   .text-muted { color: var(--text-muted); }
   .text-accent { color: var(--accent); }
   .bg-accent { background-color: var(--accent); }
+
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+  }
 }

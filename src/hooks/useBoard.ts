@@ -74,7 +74,9 @@ interface UseBoardReturn {
 function loadQueue(roomId: string): QueuedAction[] {
   try {
     const raw = localStorage.getItem(`${QUEUE_STORAGE_KEY}:${roomId}`);
-    return raw ? (JSON.parse(raw) as QueuedAction[]) : [];
+    const parsed = raw ? (JSON.parse(raw) as QueuedAction[]) : [];
+    // Never replay board setup — it can wipe lanes for joiners.
+    return parsed.filter((q) => (q.message as { type: string }).type !== "init_board");
   } catch {
     return [];
   }
@@ -100,10 +102,20 @@ function presenceFromState(
   return users;
 }
 
+async function fetchBoardSync(roomId: string): Promise<ServerMessage | null> {
+  const res = await fetch(`/api/board/${roomId}`, {
+    cache: "no-store",
+    headers: { Pragma: "no-cache", "Cache-Control": "no-cache" },
+  });
+  if (!res.ok) return null;
+  return (await res.json()) as ServerMessage;
+}
+
 async function postAction(roomId: string, msg: ClientMessage): Promise<ServerMessage[]> {
   const res = await fetch(`/api/board/${roomId}/action`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
+    cache: "no-store",
     body: JSON.stringify(msg),
   });
 
@@ -383,6 +395,13 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
     }
   }, [roomId, identity.name, handleServerMessage]);
 
+  const resyncFromServer = useCallback(async () => {
+    const sync = await fetchBoardSync(roomId);
+    if (sync?.type === "sync") {
+      handleServerMessage(sync);
+    }
+  }, [roomId, handleServerMessage]);
+
   const flushQueue = useCallback(async () => {
     if (queueRef.current.length === 0 || !onlineRef.current) return;
 
@@ -451,13 +470,18 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
         });
 
         try {
-          const res = await fetch(`/api/board/${roomId}`);
-          if (!res.ok) throw new Error("sync failed");
-          const sync = (await res.json()) as ServerMessage;
+          const sync = await fetchBoardSync(roomId);
+          if (!sync) throw new Error("sync failed");
           if (sync.type === "sync") {
             handleServerMessage(sync);
-            const hasContent = sync.columns.length > 0 || sync.cards.length > 0;
-            if (!sync.board.initialized && (!hasContent || initConfigRef.current)) {
+            const isEmpty = sync.columns.length === 0 && sync.cards.length === 0;
+            if (isEmpty && initConfigRef.current) {
+              await maybeInitBoard();
+            } else if (
+              initConfigRef.current &&
+              sync.board.name === "Untitled Board" &&
+              initConfigRef.current.name !== "Untitled Board"
+            ) {
               await maybeInitBoard();
             }
           }
@@ -500,6 +524,22 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
       channelRef.current = null;
     };
   }, [roomId, identity, handleServerMessage, maybeInitBoard, flushQueue]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void resyncFromServer();
+      }
+    };
+    const onFocus = () => void resyncFromServer();
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [resyncFromServer]);
 
   useEffect(() => {
     const goOffline = () => {

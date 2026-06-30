@@ -28,6 +28,17 @@ export function generateRoomId(name?: string): string {
   return `${prefix || "board"}-${suffix}`;
 }
 
+/** Best-effort title from a room slug, e.g. sprint-223-efb36f → Sprint 223 */
+export function roomIdToDisplayName(roomId: string): string | null {
+  const match = roomId.match(/^(.+)-[a-f0-9]{6}$/i);
+  if (!match?.[1] || match[1] === "board") return null;
+  return match[1]
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export function pickColumnColor(index: number): string {
   const colors = [
     "#6366F1",

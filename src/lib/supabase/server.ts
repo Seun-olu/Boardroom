@@ -46,14 +46,19 @@ export async function loadBoardState(roomId: string): Promise<BoardState> {
   if (error) throw error;
   if (!data) return defaultBoardState();
 
-  return {
-    columns: data.columns as BoardColumn[],
-    cards: normalizeCards(data.cards as Card[]),
-    board: {
-      ...(data.board as BoardMeta),
-      version: (data.board as BoardMeta).version ?? 1,
-    },
+  const columns = data.columns as BoardColumn[];
+  const cards = normalizeCards(data.cards as Card[]);
+  const board = {
+    ...(data.board as BoardMeta),
+    version: (data.board as BoardMeta).version ?? 1,
   };
+
+  const hasContent = columns.length > 0 || cards.length > 0;
+  if (hasContent && !board.initialized) {
+    board.initialized = true;
+  }
+
+  return { columns, cards, board };
 }
 
 export async function saveBoardState(roomId: string, state: BoardState): Promise<void> {

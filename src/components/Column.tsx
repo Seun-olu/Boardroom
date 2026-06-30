@@ -89,7 +89,7 @@ export function Column({
         ref={setSortableRef}
         style={laneStyle}
         className={clsx(
-          "flex w-72 shrink-0 flex-col",
+          "flex w-[min(88vw,18rem)] shrink-0 snap-center flex-col sm:w-72",
           isLaneDragging && "z-50 opacity-60"
         )}
       >
@@ -154,7 +154,7 @@ export function Column({
         <div
           ref={setDropRef}
           className={clsx(
-            "flex min-h-[420px] flex-1 flex-col gap-2.5 rounded-xl border p-3 transition-colors",
+            "flex min-h-[min(52vh,420px)] flex-1 flex-col gap-2.5 rounded-xl border p-3 transition-colors sm:min-h-[420px]",
             isOver ? "border-accent/40 bg-accent/5" : "border-subtle bg-surface"
           )}
           style={{

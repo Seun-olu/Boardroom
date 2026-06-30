@@ -13,6 +13,7 @@ import { PresenceBar } from "@/components/PresenceBar";
 import { Button } from "@/components/ui/Button";
 import { JoinNameModal } from "@/components/modals/JoinNameModal";
 import { CreateColumnModal } from "@/components/modals/CreateColumnModal";
+import { roomIdToDisplayName } from "@/lib/board-utils";
 import type { BoardTemplate } from "@/lib/types";
 import { LANE } from "@/lib/labels";
 
@@ -83,22 +84,25 @@ function BoardroomView({
     updateBoard(trimmed, board.version);
   };
 
-  const displayBoardName =
-    initConfig?.name &&
-    (!board.initialized || board.name === "Untitled Board")
-      ? initConfig.name
-      : board.name;
+  const displayBoardName = useMemo(() => {
+    if (board.name && board.name !== "Untitled Board") return board.name;
+    if (initConfig?.name && initConfig.name !== "Untitled Board") return initConfig.name;
+    return roomIdToDisplayName(roomId) ?? board.name;
+  }, [board.name, initConfig?.name, roomId]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-base text-white">
-      <header className="relative z-20 overflow-visible border-b border-subtle px-6 py-4 md:px-10">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-4 overflow-visible sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="font-display text-lg uppercase tracking-tight text-white">
+    <div className="flex min-h-[100dvh] flex-col bg-base text-white">
+      <header className="relative z-20 shrink-0 overflow-visible border-b border-subtle px-4 py-3 sm:px-6 sm:py-4 md:px-10">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 overflow-visible sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
+            <Link
+              href="/"
+              className="shrink-0 font-display text-base uppercase tracking-tight text-white sm:text-lg"
+            >
               Boardroom
             </Link>
             <div className="hidden h-4 w-px bg-subtle sm:block" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               {isRenamingBoard ? (
                 <input
                   ref={renameRef}
@@ -118,10 +122,10 @@ function BoardroomView({
                     setBoardNameDraft(displayBoardName);
                     setIsRenamingBoard(true);
                   }}
-                  className="group flex max-w-[240px] items-center gap-2 text-left"
+                  className="group flex w-full max-w-full items-center gap-2 text-left sm:max-w-[280px]"
                   title="Rename board"
                 >
-                  <h1 className="truncate text-sm font-semibold text-white group-hover:text-accent">
+                  <h1 className="truncate text-base font-semibold text-white group-hover:text-accent sm:text-sm">
                     {displayBoardName}
                   </h1>
                   <svg
@@ -138,16 +142,16 @@ function BoardroomView({
             </div>
           </div>
 
-          <div className="relative z-30 flex flex-wrap items-center gap-4 overflow-visible">
+          <div className="relative z-30 flex flex-wrap items-center gap-2 overflow-visible sm:gap-4">
             <PresenceBar users={users} currentUserName={identity.name} />
             <ConnectionStatus state={connectionState} pendingCount={pendingCount} />
-            <Button variant="secondary" size="sm" onClick={copyLink}>
+            <Button variant="secondary" size="sm" onClick={copyLink} className="shrink-0">
               Copy link
             </Button>
           </div>
         </div>
 
-        <p className="mx-auto mt-2 max-w-[1600px] font-mono text-[10px] text-muted">
+        <p className="mx-auto mt-2 max-w-[1600px] truncate font-mono text-[10px] text-muted">
           You&apos;re{" "}
           <span style={{ color: identity.color }}>{identity.name}</span>
           <button
@@ -160,7 +164,7 @@ function BoardroomView({
         </p>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col px-6 py-6 md:px-10">
+      <main className="mx-auto flex w-full min-w-0 max-w-[1600px] flex-1 flex-col px-3 py-4 sm:px-6 sm:py-6 md:px-10">
         {isLoading ? (
           <BoardSkeleton />
         ) : columns.length === 0 ? (
@@ -195,7 +199,7 @@ function BoardroomView({
         )}
       </main>
 
-      <footer className="border-t border-subtle px-6 py-3 md:px-10">
+      <footer className="shrink-0 border-t border-subtle px-4 py-3 sm:px-6 md:px-10">
         <p className="mx-auto max-w-[1600px] font-mono text-[10px] text-muted/60">
           Built by Oluwaseun Olugbewesa — real-time collaboration demo
         </p>

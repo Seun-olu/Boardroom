@@ -5,6 +5,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -85,6 +86,7 @@ export function Board({
   const laneIds = orderedColumns.map((c) => laneSortableId(c.id));
 
   const sensors = useSensors(
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
@@ -168,7 +170,7 @@ export function Board({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex items-start gap-4 overflow-x-auto pb-4">
+        <div className="scroll-touch -mx-1 flex snap-x snap-mandatory items-start gap-3 overflow-x-auto scroll-smooth px-1 pb-4 [scrollbar-width:thin] sm:mx-0 sm:gap-4 sm:px-0 sm:pb-4">
           <SortableContext items={laneIds} strategy={horizontalListSortingStrategy}>
             {orderedColumns.map((col) => (
               <Column
@@ -189,7 +191,7 @@ export function Board({
           <button
             type="button"
             onClick={() => setLaneModalOpen(true)}
-            className="mt-8 flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-dashed border-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:border-accent/50 hover:text-accent"
+            className="mt-6 flex h-9 w-[min(72vw,12rem)] shrink-0 snap-center items-center justify-center gap-1.5 rounded-lg border border-dashed border-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:border-accent/50 hover:text-accent sm:mt-8 sm:w-auto"
             title={LANE.add}
           >
             <span className="text-sm leading-none">+</span>
