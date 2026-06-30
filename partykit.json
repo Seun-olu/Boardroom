@@ -1,0 +1,6 @@
+{
+  "name": "boardroom",
+  "main": "party/board.ts",
+  "compatibilityDate": "2024-11-01",
+  "port": 1999
+}

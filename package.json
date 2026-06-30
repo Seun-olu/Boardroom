@@ -1,0 +1,39 @@
+{
+  "name": "boardroom",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n next,party -c blue,magenta \"next dev -p 3002\" \"partykit dev\"",
+    "dev:alt": "concurrently -n next,party -c blue,magenta \"next dev -p 3000\" \"partykit dev\"",
+    "dev:next": "next dev",
+    "dev:party": "partykit dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "party:deploy": "partykit deploy"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "clsx": "^2.1.1",
+    "nanoid": "^5.1.0",
+    "next": "^14.2.22",
+    "partysocket": "^1.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sonner": "^1.7.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "concurrently": "^9.1.2",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.22",
+    "partykit": "^0.0.115",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3"
+  }
+}
