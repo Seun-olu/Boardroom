@@ -11,11 +11,13 @@ import { getPublishableKey, getSupabaseUrl } from "./env";
  * request path.
  */
 export async function createSupabaseServerClient() {
+  // Read cookies first: it marks the route as per-request, so builds without
+  // Supabase env (e.g. CI) never try to pre-render signed-in pages.
+  const cookieStore = await cookies();
   const url = getSupabaseUrl();
   const key = getPublishableKey();
   if (!url || !key) throw new Error("Supabase is not configured");
 
-  const cookieStore = await cookies();
   return createServerClient<Database>(url, key, {
     cookies: {
       getAll: () => cookieStore.getAll(),
