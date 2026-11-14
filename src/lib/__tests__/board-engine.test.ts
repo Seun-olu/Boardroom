@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
-import { BoardEngine } from "../src/lib/board-engine";
+import { test } from "vitest";
+import { BoardEngine } from "../board-engine";
 
-function test(name: string, fn: () => void) {
-  fn();
-  console.log(`✓ ${name}`);
-}
 
 test("init_board sets template once", () => {
   const engine = new BoardEngine();
@@ -113,4 +110,35 @@ test("init_board does not wipe existing lanes or cards", () => {
   assert.equal(engine.board.name, "Sprint 555");
 });
 
-console.log("\nAll board-engine tests passed.");
+test("update_board with stale version is rejected", () => {
+  const engine = new BoardEngine();
+  engine.apply({ type: "init_board", name: "Test", template: "empty" });
+  const v = engine.board.version;
+  engine.apply({ type: "update_board", name: "A", expectedVersion: v, userName: "U1", clientActionId: "b1" });
+  const msgs = engine.apply({ type: "update_board", name: "B", expectedVersion: v - 1, userName: "U2", clientActionId: "b2" });
+  assert.equal(engine.board.name, "A");
+  assert.ok(msgs.some((m) => m.type === "action_ack" && !m.success));
+});
+
+test("delete_column refuses to remove the last lane", () => {
+  const engine = new BoardEngine();
+  engine.apply({ type: "add_column", title: "Only", color: "#6366F1", clientActionId: "c", userName: "U" });
+  const col = engine.columns[0]!;
+  const msgs = engine.apply({ type: "delete_column", columnId: col.id, expectedVersion: col.version, userName: "U", clientActionId: "d" });
+  assert.equal(engine.columns.length, 1);
+  assert.ok(msgs.some((m) => m.type === "action_ack" && !m.success));
+});
+
+test("flush_queue applies actions in order and skips nested init", () => {
+  const engine = new BoardEngine();
+  engine.apply({ type: "init_board", name: "Test", template: "empty" });
+  const msgs = engine.apply({
+    type: "flush_queue",
+    actions: [
+      { type: "add_card", title: "One", column: "todo", clientActionId: "q1", userName: "U" },
+      { type: "add_card", title: "Two", column: "todo", clientActionId: "q2", userName: "U" },
+    ],
+  });
+  assert.deepEqual(engine.cards.map((c) => c.title), ["One", "Two"]);
+  assert.equal(msgs.filter((m) => m.type === "card_added").length, 2);
+});

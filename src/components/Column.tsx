@@ -60,9 +60,12 @@ export function Column({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const renameRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  // Keep the rename draft in step with remote title changes.
+  const [syncedTitle, setSyncedTitle] = useState(column.title);
+  if (column.title !== syncedTitle) {
+    setSyncedTitle(column.title);
     setRenameValue(column.title);
-  }, [column.title]);
+  }
 
   useEffect(() => {
     if (isRenaming) renameRef.current?.focus();

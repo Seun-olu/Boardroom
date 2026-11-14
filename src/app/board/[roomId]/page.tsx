@@ -3,13 +3,14 @@ import { Boardroom } from "@/components/Boardroom";
 import { BoardSkeleton } from "@/components/BoardSkeleton";
 
 interface BoardPageProps {
-  params: { roomId: string };
+  params: Promise<{ roomId: string }>;
 }
 
-export default function BoardPage({ params }: BoardPageProps) {
+export default async function BoardPage({ params }: BoardPageProps) {
+  const { roomId } = await params;
   return (
     <Suspense fallback={<BoardSkeleton />}>
-      <Boardroom roomId={params.roomId} />
+      <Boardroom roomId={roomId} />
     </Suspense>
   );
 }

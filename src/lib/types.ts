@@ -159,9 +159,21 @@ export interface UpdateColumnMessage {
   clientActionId: string;
 }
 
+/** Actions that may be queued offline and replayed (never setup or nested flushes). */
+export type QueueableMessage =
+  | UpdateBoardMessage
+  | MoveCardMessage
+  | AddCardMessage
+  | UpdateCardMessage
+  | AddColumnMessage
+  | DeleteCardMessage
+  | DeleteColumnMessage
+  | UpdateColumnMessage
+  | MoveColumnMessage;
+
 export interface FlushQueueMessage {
   type: "flush_queue";
-  actions: ClientMessage[];
+  actions: QueueableMessage[];
 }
 
 export type ClientMessage =
@@ -270,7 +282,7 @@ export type ServerMessage =
 
 export interface QueuedAction {
   id: string;
-  message: Exclude<ClientMessage, InitBoardMessage | FlushQueueMessage>;
+  message: QueueableMessage;
   optimisticCard?: Card;
   optimisticColumn?: BoardColumn;
   previousColumn?: BoardColumn;

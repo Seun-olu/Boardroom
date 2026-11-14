@@ -7,31 +7,38 @@
     "dev:alt": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "test:engine": "tsx scripts/test-board-engine.ts",
-    "check:supabase": "bash scripts/check-supabase-env.sh"
+    "lint": "eslint .",
+    "check:supabase": "bash scripts/check-supabase-env.sh",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@supabase/supabase-js": "^2.49.1",
+    "@supabase/supabase-js": "^2.119.0",
     "clsx": "^2.1.1",
-    "nanoid": "^5.1.0",
-    "next": "^14.2.22",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "sonner": "^1.7.4"
+    "nanoid": "^5.1.16",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sonner": "^2.0.8",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^22.10.7",
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.22",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.6",
     "postcss": "^8.5.1",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "5.9",
+    "vitest": "^3.2.7"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

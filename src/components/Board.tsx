@@ -120,7 +120,7 @@ export function Board({
       const activeColumnId = parseLaneSortableId(active.id);
       const overColumnId =
         parseLaneSortableId(over.id) ?? resolveColumnId(over.id) ?? null;
-      let targetId = overColumnId;
+      const targetId = overColumnId;
       if (!activeColumnId || !targetId) return;
 
       const oldIndex = orderedColumns.findIndex((c) => c.id === activeColumnId);

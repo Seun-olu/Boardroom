@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { nanoid } from "nanoid";
 import { QUEUE_STORAGE_KEY } from "@/lib/constants";
@@ -111,6 +111,18 @@ async function fetchBoardSync(roomId: string): Promise<ServerMessage | null> {
   return (await res.json()) as ServerMessage;
 }
 
+/** Non-2xx response from the action API. 4xx means the server rejected the action itself. */
+class ActionError extends Error {
+  constructor(readonly status: number) {
+    super(`Action failed (${status})`);
+  }
+}
+
+/** Rejected actions will never succeed on retry, so they must not be re-queued. */
+function isRejected(err: unknown): boolean {
+  return err instanceof ActionError && err.status >= 400 && err.status < 500;
+}
+
 async function postAction(roomId: string, msg: ClientMessage): Promise<ServerMessage[]> {
   const res = await fetch(`/api/board/${roomId}/action`, {
     method: "POST",
@@ -120,7 +132,7 @@ async function postAction(roomId: string, msg: ClientMessage): Promise<ServerMes
   });
 
   if (!res.ok) {
-    throw new Error(`Action failed (${res.status})`);
+    throw new ActionError(res.status);
   }
 
   const data = (await res.json()) as { messages: ServerMessage[] };
@@ -136,16 +148,17 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
     version: 1,
   });
   const boardRef = useRef(board);
-  boardRef.current = board;
   const [users, setUsers] = useState<PresenceUser[]>([]);
-  const [connectionState, setConnectionState] = useState<ConnectionState>("reconnecting");
-  const [isLoading, setIsLoading] = useState(true);
+  // NEXT_PUBLIC_* env is inlined at build time, so this is stable for the app's lifetime.
+  const configured = isSupabaseConfigured();
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    configured ? "reconnecting" : "offline"
+  );
+  const [isLoading, setIsLoading] = useState(configured);
   const [pendingCount, setPendingCount] = useState(0);
 
   const cardsRef = useRef(cards);
   const columnsRef = useRef(columns);
-  cardsRef.current = cards;
-  columnsRef.current = columns;
 
   const queueRef = useRef<QueuedAction[]>(loadQueue(roomId));
   const pendingActionsRef = useRef<Map<string, QueuedAction>>(new Map());
@@ -155,7 +168,14 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
   const onlineRef = useRef(true);
 
   const initConfigRef = useRef(initConfig);
-  initConfigRef.current = initConfig;
+
+  // Mirror the latest render values into refs for use inside async callbacks.
+  useLayoutEffect(() => {
+    boardRef.current = board;
+    cardsRef.current = cards;
+    columnsRef.current = columns;
+    initConfigRef.current = initConfig;
+  });
 
   const updatePendingCount = useCallback(() => {
     setPendingCount(queueRef.current.length + pendingActionsRef.current.size);
@@ -413,22 +433,28 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
     try {
       const messages = await postAction(roomId, { type: "flush_queue", actions });
       for (const msg of messages) handleServerMessage(msg);
-    } catch {
+    } catch (err) {
+      if (isRejected(err)) {
+        // The batch is invalid; retrying would loop forever. Drop it and reload truth.
+        toast.error("Offline changes rejected", {
+          description: "The server refused them. Reloaded the latest board.",
+        });
+        void resyncFromServer();
+        return;
+      }
       queueRef.current = actions.map((message, i) => ({
         id: `recovered-${i}`,
-        message: message as QueuedAction["message"],
+        message,
         createdAt: Date.now(),
       }));
       saveQueue(roomId, queueRef.current);
       updatePendingCount();
       toast.error("Sync failed", { description: "Some offline changes could not be sent." });
     }
-  }, [roomId, handleServerMessage, updatePendingCount]);
+  }, [roomId, handleServerMessage, updatePendingCount, resyncFromServer]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
-      setIsLoading(false);
-      setConnectionState("offline");
+    if (!configured) {
       toast.error("Supabase not configured", {
         description: "Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to .env.local",
         duration: 10000,
@@ -486,14 +512,10 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
             }
           }
           await flushQueue();
-        } catch (err) {
+        } catch {
           setConnectionState("offline");
-          const isRls =
-            err instanceof Error && err.message.includes("42501");
           toast.error("Cannot reach board API", {
-            description: isRls
-              ? "Run supabase/fix-rls.sql in Supabase SQL Editor."
-              : "Check Supabase keys in .env.local and restart npm run dev.",
+            description: "The board server is unavailable. Changes will queue until it is back.",
             duration: 10000,
           });
         }
@@ -523,7 +545,7 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
       void supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [roomId, identity, handleServerMessage, maybeInitBoard, flushQueue]);
+  }, [configured, roomId, identity, handleServerMessage, maybeInitBoard, flushQueue]);
 
   useEffect(() => {
     const onVisible = () => {
@@ -577,10 +599,14 @@ export function useBoard({ roomId, identity, initConfig }: UseBoardOptions): Use
       try {
         const messages = await postAction(roomId, message);
         for (const msg of messages) handleServerMessage(msg);
-      } catch {
+      } catch (err) {
         pendingActionsRef.current.delete(action.id);
         rollbackAction(full);
         updatePendingCount();
+        if (isRejected(err)) {
+          toast.error("Change rejected", { description: "The server refused this change." });
+          return;
+        }
         queueRef.current.push(full);
         saveQueue(roomId, queueRef.current);
         updatePendingCount();

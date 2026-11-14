@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -15,9 +15,12 @@ interface JoinNameModalProps {
 export function JoinNameModal({ open, boardName, initialName, onSubmit }: JoinNameModalProps) {
   const [name, setName] = useState(initialName ?? "");
 
-  useEffect(() => {
+  // Re-seed the field each time the modal opens.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) setName(initialName ?? "");
-  }, [open, initialName]);
+  }
 
   const handleSubmit = () => {
     const trimmed = name.trim();

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useHydrated } from "@/hooks/useHydrated";
 import clsx from "clsx";
 import { LANE } from "@/lib/labels";
 
@@ -102,14 +103,12 @@ export function Dropdown({
   const listboxId = `${triggerId}-listbox`;
   const [open, setOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const selected = options.find((o) => o.value === value);
-
-  useEffect(() => setMounted(true), []);
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -121,10 +120,7 @@ export function Dropdown({
   }, []);
 
   useLayoutEffect(() => {
-    if (!open) {
-      setMenuPosition(null);
-      return;
-    }
+    if (!open) return;
     updatePosition();
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);

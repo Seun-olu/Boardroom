@@ -80,7 +80,10 @@ export class BoardEngine {
       case "flush_queue": {
         const out: ServerMessage[] = [];
         for (const action of msg.actions) {
-          if (action.type === "init_board" || action.type === "flush_queue") continue;
+          // Defensive: the type and the API schema both forbid these, but the
+          // engine must never replay board setup or recurse.
+          const kind: string = action.type;
+          if (kind === "init_board" || kind === "flush_queue") continue;
           out.push(...this.apply(action));
         }
         return out;

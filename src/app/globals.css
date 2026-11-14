@@ -2,11 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Archivo+Black&display=swap');
-
 :root {
-  --font-display: 'Archivo Black', sans-serif;
-  --font-body: 'Inter', system-ui, sans-serif;
+  /* --font-archivo / --font-inter are injected by next/font in layout.tsx */
+  --font-display: var(--font-archivo), 'Archivo Black', sans-serif;
+  --font-body: var(--font-inter), 'Inter', system-ui, sans-serif;
   --bg-base: #0a0a0b;
   --bg-surface: #141416;
   --bg-elevated: #1c1c1f;

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useBoard } from "@/hooks/useBoard";
+import { useHydrated } from "@/hooks/useHydrated";
 import { getStoredIdentity, saveIdentity, type UserIdentity } from "@/lib/username";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Board } from "@/components/Board";
@@ -84,11 +85,12 @@ function BoardroomView({
     updateBoard(trimmed, board.version);
   };
 
-  const displayBoardName = useMemo(() => {
-    if (board.name && board.name !== "Untitled Board") return board.name;
-    if (initConfig?.name && initConfig.name !== "Untitled Board") return initConfig.name;
-    return roomIdToDisplayName(roomId) ?? board.name;
-  }, [board.name, initConfig?.name, roomId]);
+  const displayBoardName =
+    board.name && board.name !== "Untitled Board"
+      ? board.name
+      : initConfig?.name && initConfig.name !== "Untitled Board"
+        ? initConfig.name
+        : (roomIdToDisplayName(roomId) ?? board.name);
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-base text-white">
@@ -214,9 +216,16 @@ function BoardroomView({
 
 export function Boardroom({ roomId }: BoardroomProps) {
   const searchParams = useSearchParams();
-  const [identity, setIdentity] = useState<UserIdentity | null>(null);
-  const [identityReady, setIdentityReady] = useState(false);
-  const [namePromptOpen, setNamePromptOpen] = useState(true);
+  // sessionStorage is only readable after hydration; read it once then.
+  const identityReady = useHydrated();
+  const storedIdentity = useMemo(
+    () => (identityReady ? getStoredIdentity() : null),
+    [identityReady]
+  );
+  const [chosenIdentity, setIdentity] = useState<UserIdentity | null>(null);
+  const identity = chosenIdentity ?? storedIdentity;
+  const [changeNameRequested, setNamePromptOpen] = useState(false);
+  const namePromptOpen = changeNameRequested || !identity;
 
   const initConfig = useMemo(() => {
     if (searchParams.get("fresh") !== "1") return null;
@@ -225,15 +234,6 @@ export function Boardroom({ roomId }: BoardroomProps) {
       template: (searchParams.get("template") ?? "blank") as BoardTemplate,
     };
   }, [searchParams]);
-
-  useEffect(() => {
-    const stored = getStoredIdentity();
-    if (stored) {
-      setIdentity(stored);
-      setNamePromptOpen(false);
-    }
-    setIdentityReady(true);
-  }, []);
 
   const pendingBoardName = initConfig?.name;
 

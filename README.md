@@ -35,6 +35,17 @@ npm run dev
 
 Open [http://localhost:3002](http://localhost:3002), create a board, and open the link in another tab to test sync.
 
+## Checks
+
+```bash
+npm run lint
+npm run typecheck
+npm test          # Vitest: engine, validation, API route
+npm run build
+```
+
+CI runs the same four steps on every push and pull request (`.github/workflows/ci.yml`).
+
 ## Deploy (Netlify)
 
 1. Push to GitHub
@@ -58,7 +69,8 @@ Open [http://localhost:3002](http://localhost:3002), create a board, and open th
 
 ```
 src/lib/board-engine.ts     ← Board logic (moves, conflicts, templates)
-src/app/api/board/          ← REST API (load + mutate)
+src/lib/validation.ts       ← Zod schemas + size limits for every API action
+src/app/api/board/          ← REST API (load + mutate; validates before DB access)
 src/hooks/useBoard.ts       ← Client hook (optimistic + realtime)
 supabase/schema.sql         ← One-time DB setup
 ```

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import clsx from "clsx";
 import { Drawer } from "@/components/ui/Drawer";
 import { Button } from "@/components/ui/Button";
@@ -65,7 +65,11 @@ export function CardDetailDrawer({
   const [newSubtask, setNewSubtask] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  useEffect(() => {
+  // Reset the form whenever a different card (or a newer version) is shown.
+  // Adjusting state during render avoids an extra effect-driven render pass.
+  const [syncedCard, setSyncedCard] = useState<Card | null>(null);
+  if (card !== syncedCard) {
+    setSyncedCard(card);
     if (card) {
       setTitle(card.title);
       setDescription(card.description);
@@ -74,7 +78,7 @@ export function CardDetailDrawer({
       setSubtasks(card.subtasks ?? []);
       setNewSubtask("");
     }
-  }, [card]);
+  }
 
   if (!card) return null;
 

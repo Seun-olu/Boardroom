@@ -1,5 +1,9 @@
 # Boardroom — Case Study
 
+> **Note (2026-11):** This case study describes an earlier PartyKit prototype. The current app uses
+> **Next.js API routes + Supabase Postgres + Supabase Realtime** (see `README.md`). The document will be
+> rewritten to match the hardened architecture when that work lands.
+
 **Author:** Oluwaseun Olugbewesa  
 **Scope:** One board, three columns, one week  
 **Live demo:** _Deploy with instructions in README_  

@@ -1,6 +1,21 @@
 import type { Metadata, Viewport } from "next";
+import { Archivo_Black, Inter } from "next/font/google";
 import { ToasterHost } from "@/components/ui/ToasterHost";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const archivo = Archivo_Black({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-archivo",
+  display: "swap",
+});
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "http://localhost:3002";
@@ -67,7 +82,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${archivo.variable}`}>
       <body className="bg-black text-white antialiased">
         {children}
         <ToasterHost />
