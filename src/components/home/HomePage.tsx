@@ -1,9 +1,5 @@
-"use client";
-
-import { useState } from "react";
+import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
-import { CreateBoardModal } from "@/components/modals/CreateBoardModal";
-import { Button } from "@/components/ui/Button";
 import { KanbanPreview } from "./KanbanPreview";
 
 const FEATURES = [
@@ -21,7 +17,7 @@ const FEATURES = [
   },
   {
     title: "Conflict handling",
-    desc: "Last-write-wins with feedback when two people edit the same card.",
+    desc: "Every card is versioned. If someone changed it first, you're told instead of overwriting them.",
     color: "#F59E0B",
     icon: "⟳",
   },
@@ -34,14 +30,17 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { n: "01", label: "Create a board", detail: "Pick a template or start blank." },
-  { n: "02", label: "Share the link", detail: "Anyone with the URL can join." },
-  { n: "03", label: "Ship together", detail: "Drag cards, add lanes, stay in sync." },
+  { n: "01", label: "Create a workspace", detail: "Sign up and set up a space for your team." },
+  { n: "02", label: "Invite your team", detail: "Send invite links with owner, admin, member or viewer roles." },
+  { n: "03", label: "Ship together", detail: "Create boards, drag cards, add lanes, stay in sync." },
 ];
 
-export function HomePage() {
-  const [modalOpen, setModalOpen] = useState(false);
+const primaryLink =
+  "inline-flex min-h-[44px] touch-manipulation items-center justify-center rounded-lg bg-accent px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-white transition-all hover:brightness-110";
+const secondaryLink =
+  "inline-flex min-h-[40px] touch-manipulation items-center justify-center rounded-lg border border-subtle bg-surface px-4 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-white transition-all hover:border-accent/50";
 
+export function HomePage({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-base text-white">
       <div className="landing-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden />
@@ -51,9 +50,9 @@ export function HomePage() {
       <header className="relative z-10 border-b border-subtle/80 bg-base/60 px-4 py-4 backdrop-blur-md sm:px-6 md:px-10">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <BrandLogo href="/" />
-          <Button variant="secondary" size="sm" onClick={() => setModalOpen(true)}>
-            New board
-          </Button>
+          <Link href={signedIn ? "/w" : "/sign-in"} className={secondaryLink}>
+            {signedIn ? "Open workspaces" : "Sign in"}
+          </Link>
         </div>
       </header>
 
@@ -63,7 +62,7 @@ export function HomePage() {
             <div className="mx-auto flex max-w-full items-center justify-center gap-2 rounded-full border border-subtle bg-surface/60 px-3 py-1.5 backdrop-blur-sm sm:px-4">
               <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-emerald-400" />
               <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted sm:text-[10px] sm:tracking-[0.25em]">
-                Real-time collaboration demo
+                Team kanban · real-time
               </span>
             </div>
           </div>
@@ -76,17 +75,17 @@ export function HomePage() {
               <span className="mt-1 block text-muted">In real time.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-lg text-sm leading-relaxed text-muted sm:text-base">
-              A shared kanban board built to show optimistic UI, connection states,
-              live presence, and the hard edges of multiplayer — not just REST forms.
+              Workspaces, roles and shared kanban boards — with optimistic updates,
+              live presence and versioned edits so nobody overwrites anyone else.
             </p>
 
             <div className="mt-8 flex w-full max-w-sm flex-col items-stretch gap-3 sm:mx-auto sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
-              <Button
-                className="w-full shadow-[0_0_40px_rgba(99,102,241,0.35)] sm:min-w-[200px] sm:w-auto"
-                onClick={() => setModalOpen(true)}
+              <Link
+                href={signedIn ? "/w" : "/sign-up"}
+                className={`${primaryLink} w-full shadow-[0_0_40px_rgba(99,102,241,0.35)] sm:w-auto sm:min-w-[200px]`}
               >
-                Create a board
-              </Button>
+                {signedIn ? "Go to your boards" : "Get started"}
+              </Link>
               <a
                 href="#how-it-works"
                 className="py-2 text-center font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:text-accent sm:py-0"
@@ -155,7 +154,6 @@ export function HomePage() {
         </p>
       </footer>
 
-      <CreateBoardModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
   );
 }

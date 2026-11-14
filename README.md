@@ -35,6 +35,21 @@ npm run dev
 
 Open [http://localhost:3002](http://localhost:3002), create a board, and open the link in another tab to test sync.
 
+## Accounts & workspaces
+
+- **Sign-in:** Supabase Auth (email + password, email confirmation, password reset) with cookie sessions via `@supabase/ssr`. `src/proxy.ts` (Next 16's middleware) refreshes the session and redirects signed-out visitors. Every page and server action re-checks on the server.
+- **Workspaces:** each has owner / admin / member / viewer roles. Admins invite by email; the invite link only works for a signed-in, *confirmed* account with that email, and expires after 7 days. There's no email sending yet, so admins copy the link from the Members page.
+- **Authorisation lives in the database:** server actions validate input with Zod and run as the signed-in user, so row-level security decides what's allowed. The secret key is never used on the request path.
+
+### Environments
+
+| File | Used by | Points at |
+|---|---|---|
+| `.env.development.local` | `next dev`, Playwright | the dev Supabase project |
+| `.env.local` | `next build` / `next start` | production |
+
+For email links to come back to your local app, add `http://localhost:3002/**` to **Auth → URL Configuration → Redirect URLs** in the dev project.
+
 ## Database
 
 `supabase/migrations/` is the source of truth. The schema is relational (workspaces → boards → lanes → cards, plus comments, activity and notifications), and access is decided in Postgres:
@@ -51,7 +66,8 @@ Database tests run the real migrations in [PGlite](https://pglite.dev) (in-proce
 ```bash
 npm run lint
 npm run typecheck
-npm test          # Vitest: engine, validation, API route
+npm test          # Vitest: engine, validation, API route, proxy, DB (PGlite)
+npm run test:e2e  # Playwright journeys against the dev project (uses local Chrome)
 npm run build
 ```
 
