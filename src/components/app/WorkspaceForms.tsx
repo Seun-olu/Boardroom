@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { createBoard, createWorkspace, deleteBoard, renameBoard } from "@/app/(app)/w/actions";
 import { Button } from "@/components/ui/Button";
@@ -71,7 +72,7 @@ export function BoardTile({
   const updated = new Date(board.updatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   return (
-    <li className="flex flex-col rounded-2xl border border-subtle bg-surface p-5">
+    <li className="relative flex flex-col rounded-2xl border border-subtle bg-surface p-5 transition-colors hover:border-accent/50">
       {mode === "rename" ? (
         <ActionForm action={renameBoard} hidden={{ workspaceId, boardId: board.id, version: board.version }} aria-label={`Rename ${board.name}`}>
           {(errors) => (
@@ -88,7 +89,11 @@ export function BoardTile({
         </ActionForm>
       ) : (
         <>
-          <h3 className="truncate text-lg font-semibold">{board.name}</h3>
+          <h3 className="truncate text-lg font-semibold">
+            <Link href={`/w/${workspaceId}/b/${board.id}`} className="hover:text-accent after:absolute after:inset-0">
+              {board.name}
+            </Link>
+          </h3>
           <p className="mt-1 font-mono text-xs text-muted">
             {board.lanes} {board.lanes === 1 ? "lane" : "lanes"} · {board.cards} {board.cards === 1 ? "card" : "cards"} · updated {updated}
           </p>
@@ -96,7 +101,7 @@ export function BoardTile({
       )}
 
       {mode === "delete" && (
-        <ActionForm action={deleteBoard} hidden={{ workspaceId, boardId: board.id }} toastOnSuccess className="mt-4" aria-label={`Delete ${board.name}`}>
+        <ActionForm action={deleteBoard} hidden={{ workspaceId, boardId: board.id }} toastOnSuccess className="relative z-10 mt-4" aria-label={`Delete ${board.name}`}>
           <p className="mb-3 text-sm text-red-200">Delete this board and all its cards? This can&apos;t be undone.</p>
           <div className="flex gap-2">
             <SubmitButton variant="danger" size="sm" pendingLabel="Deleting…">
@@ -110,7 +115,7 @@ export function BoardTile({
       )}
 
       {mode === "view" && (canEdit || canDelete) && (
-        <div className="mt-4 flex gap-2">
+        <div className="relative z-10 mt-4 flex gap-2">
           {canEdit && (
             <Button variant="ghost" size="sm" onClick={() => setMode("rename")}>
               Rename

@@ -78,3 +78,14 @@ export async function requestPasswordReset(_prev: FormState, form: FormData): Pr
   // Same response whether or not the account exists.
   return { status: "success", message: "If that email has an account, a reset link is on its way." };
 }
+
+export async function signInWithGoogle(form: FormData): Promise<void> {
+  const next = safeNext(form.get("next") as string | null);
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${await origin()}/auth/callback?next=${encodeURIComponent(next)}` },
+  });
+  if (error || !data.url) redirect("/sign-in?error=oauth");
+  redirect(data.url);
+}

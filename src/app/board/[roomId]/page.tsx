@@ -1,16 +1,9 @@
-import { Suspense } from "react";
-import { Boardroom } from "@/components/Boardroom";
-import { BoardSkeleton } from "@/components/BoardSkeleton";
+import { redirect } from "next/navigation";
 
-interface BoardPageProps {
-  params: Promise<{ roomId: string }>;
-}
-
-export default async function BoardPage({ params }: BoardPageProps) {
-  const { roomId } = await params;
-  return (
-    <Suspense fallback={<BoardSkeleton />}>
-      <Boardroom roomId={roomId} />
-    </Suspense>
-  );
+/**
+ * Anonymous share-link boards were retired when Boardroom moved to accounts
+ * and workspaces. Old links land on the workspace list (or sign-in).
+ */
+export default function LegacyBoardPage() {
+  redirect("/w");
 }

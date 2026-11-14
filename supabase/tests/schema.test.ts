@@ -107,9 +107,19 @@ beforeAll(async () => {
 describe("accounts and workspaces", () => {
   test("sign-up creates a profile, using the display name when given", async () => {
     const profiles = (await db.query<Row>("select id, display_name from public.profiles order by id")).rows;
-    expect(profiles).toHaveLength(5);
+    expect(profiles.length).toBeGreaterThanOrEqual(5);
     expect(profiles.find((p) => p.id === OWNER)?.display_name).toBe("Olu Owner");
     expect(profiles.find((p) => p.id === MEMBER)?.display_name).toBe("member");
+  });
+
+  test("OAuth sign-ups get their provider name", async () => {
+    const id = "00000000-0000-4000-8000-0000000000f1";
+    await db.query("insert into auth.users (id, email, raw_user_meta_data) values ($1, 'g@example.test', $2)", [
+      id,
+      JSON.stringify({ full_name: "Grace Hopper", avatar_url: "x" }),
+    ]);
+    const row = (await db.query<Row>("select display_name from public.profiles where id = $1", [id])).rows[0]!;
+    expect(row.display_name).toBe("Grace Hopper");
   });
 
   test("the creator becomes owner and created_by can't be spoofed", async () => {

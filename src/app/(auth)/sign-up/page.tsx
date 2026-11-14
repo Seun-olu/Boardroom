@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { safeNext } from "@/lib/auth";
+import { isGoogleEnabled } from "@/lib/auth-providers";
+import { GoogleButton } from "../GoogleButton";
 import { SignUpForm } from "../AuthForms";
 
 export const metadata: Metadata = { title: "Create account" };
@@ -10,6 +12,7 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
     <>
       <h1 className="font-display text-3xl uppercase tracking-tight">Create account</h1>
       <p className="mb-8 mt-2 text-sm text-muted">Workspaces, boards and real-time collaboration for your team.</p>
+      {(await isGoogleEnabled()) && <GoogleButton next={safeNext(next)} />}
       <SignUpForm next={safeNext(next)} />
     </>
   );
